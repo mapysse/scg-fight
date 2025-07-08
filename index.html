@@ -799,37 +799,45 @@
          * @param {number} [boardIndex=null] - L'index sur le plateau si la carte vient du board.
          */
         function handleCardClick(cardElement, cardData, location, playerNumber, boardIndex = null) {
-            // Si on est en mode déplacement, et qu'on clique sur une carte déjà sur le board, c'est pour la sélectionner pour le déplacement.
-            if (isMovingCard) {
-                 if (location === 'board' && playerNumber === selectedCard.player) {
-                    // C'est un clic pour sélectionner la carte à déplacer
-                    selectedCard.element = cardElement;
-                    selectedCard.data = cardData;
-                    selectedCard.location = location; // Toujours 'board'
-                    selectedCard.player = playerNumber;
-                    selectedCard.boardIndex = boardIndex;
-
-                    // Visuellement marquer la carte comme sélectionnée pour le déplacement
-                    document.querySelectorAll('.card.selected-for-move').forEach(c => c.classList.remove('selected-for-move'));
-                    cardElement.classList.add('selected-for-move');
-
-                    // Rendre les slots targetable pour le placement
-                    const boardSlots = document.querySelectorAll(`#board${playerNumber} .board-slot`);
-                    boardSlots.forEach(slot => {
-                        const idx = parseInt(slot.dataset.slotIndex);
-                        // On peut déplacer sur un slot vide ou sur son slot d'origine (pour annuler le déplacement par exemple)
-                        if (players[playerNumber].board[idx] === null || idx === boardIndex) {
-                            slot.classList.add('targetable');
-                        } else {
-                            slot.classList.remove('targetable');
-                        }
-                    });
-                    return; // Ne pas ouvrir la modale détaillée pour le moment
+            // Si on est en mode déplacement et qu'on clique sur une carte sur le plateau
+            // C'est pour la sélectionner comme carte à déplacer
+            if (isMovingCard && location === 'board' && playerNumber === selectedCard.player) {
+                // Si c'est la même carte déjà sélectionnée, on annule le déplacement
+                if (selectedCard.element === cardElement) {
+                    resetSelectedCard();
+                    alert("Déplacement annulé.");
+                    return;
                 }
+
+                // Sinon, c'est une nouvelle carte à déplacer
+                selectedCard.element = cardElement;
+                selectedCard.data = cardData;
+                selectedCard.location = location;
+                selectedCard.player = playerNumber;
+                selectedCard.boardIndex = boardIndex;
+
+                // Visuellement marquer la carte comme sélectionnée pour le déplacement
+                document.querySelectorAll('.card.selected-for-move').forEach(c => c.classList.remove('selected-for-move'));
+                cardElement.classList.add('selected-for-move');
+
+                // Rendre les slots targetable pour le placement
+                document.querySelectorAll('.board-slot').forEach(slot => { // Réinitialise tous les slots
+                    slot.classList.remove('targetable');
+                });
+                const boardSlots = document.querySelectorAll(`#board${playerNumber} .board-slot`);
+                boardSlots.forEach(slot => {
+                    const idx = parseInt(slot.dataset.slotIndex);
+                    // On peut déplacer sur un slot vide ou sur son slot d'origine
+                    if (players[playerNumber].board[idx] === null || idx === boardIndex) {
+                        slot.classList.add('targetable');
+                    }
+                });
+                return; // Ne pas ouvrir la modale détaillée pour le moment
             }
 
 
-            // Clic normal pour ouvrir la modale détaillée
+            // Clic normal pour ouvrir la modale détaillée ou si isMovingCard est faux
+            resetSelectedCard(); // Assure qu'aucun état de déplacement précédent ne perturbe
             selectedCard.element = cardElement;
             selectedCard.data = cardData;
             selectedCard.location = location; // 'hand', 'board' ou 'grid' (si vient d'une recherche)
@@ -870,9 +878,9 @@
             const slotIndex = parseInt(slotDiv.dataset.slotIndex);
             const playerNum = parseInt(slotDiv.dataset.player);
 
-            // Ne rien faire si ce n'est pas un slot "targetable" (i.e., non préparé pour un mouvement)
-            if (!slotDiv.classList.contains('targetable')) {
-                return;
+            // Important : Vérifie si isMovingCard est actif ET si le slot est targetable
+            if (!isMovingCard || !slotDiv.classList.contains('targetable')) {
+                return; // Ne fait rien si on n'est pas en mode déplacement ou si le slot n'est pas "ciblé"
             }
 
             // S'assurer que le clic est sur le plateau du joueur correct pour la carte sélectionnée
@@ -898,8 +906,8 @@
                     targetPlayer.board[slotIndex] = cardToPlace;
                     renderHand(playerNum);
                     renderBoard(playerNum);
-                    cardModal.classList.remove('active');
-                    deckGraveyardMenu.classList.remove('active'); // Fermer le menu de recherche si ouvert
+                    cardModal.classList.remove('active'); // Ferme la modale si elle était ouverte
+                    deckGraveyardMenu.classList.remove('active'); // Ferme le menu de recherche si ouvert
                     console.log(`Carte ${cardToPlace.id} du J${playerNum} posée sur l'emplacement ${slotIndex}.`);
                 }
             } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
@@ -910,7 +918,7 @@
                     targetPlayer.board[slotIndex] = cardToMove; // Placer dans le nouveau slot
 
                     renderBoard(playerNum);
-                    cardModal.classList.remove('active');
+                    cardModal.classList.remove('active'); // Ferme la modale si elle était ouverte
                     deckGraveyardMenu.classList.remove('active');
                     console.log(`Carte ${cardToMove.id} du J${playerNum} déplacée de ${selectedCard.boardIndex} à ${slotIndex}.`);
                 }
@@ -1008,8 +1016,17 @@
 
             cardModal.classList.remove('active'); // Ferme la modale
 
+            // Réinitialise tous les slots pour enlever d'éventuels anciens marquages
+            document.querySelectorAll('.board-slot').forEach(slot => {
+                slot.classList.remove('targetable');
+            });
+            document.querySelectorAll('.card.selected-for-move').forEach(card => {
+                card.classList.remove('selected-for-move');
+            });
+
             // Si la carte vient de la main, on active le mode "poser sur plateau"
             if (selectedCard.location === 'hand') {
+                isMovingCard = true; // IMPORTANT : Active le drapeau de déplacement/pose
                 alert("Clique maintenant sur un emplacement libre du plateau pour poser cette carte.");
                 // Rendre les slots vides "targetable" pour le joueur actuel
                 const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
@@ -1017,8 +1034,6 @@
                     const idx = parseInt(slot.dataset.slotIndex);
                     if (players[selectedCard.player].board[idx] === null) {
                         slot.classList.add('targetable');
-                    } else {
-                        slot.classList.remove('targetable');
                     }
                 });
             }
@@ -1033,22 +1048,22 @@
                 const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
                 boardSlots.forEach(slot => {
                     const idx = parseInt(slot.dataset.slotIndex);
+                    // Un slot est targetable s'il est vide OU si c'est le slot d'origine de la carte
                     if (players[selectedCard.player].board[idx] === null || idx === selectedCard.boardIndex) {
                         slot.classList.add('targetable');
-                    } else {
-                        slot.classList.remove('targetable');
                     }
                 });
             } else if (selectedCard.location === 'grid') { // Carte sélectionnée depuis le menu de recherche (deck/cimetière)
-                 const targetHand = players[selectedCard.player].hand;
-                 let sourceZone = null;
-                 if (selectedCard.menuOrigin === 'deck') {
-                     sourceZone = players[selectedCard.player].deck;
-                 } else if (selectedCard.menuOrigin === 'graveyard') {
-                     sourceZone = players[selectedCard.player].graveyard;
-                 }
+                // Dans ce cas, l'action est de prendre la carte pour la main, pas de la poser sur le plateau.
+                const targetHand = players[selectedCard.player].hand;
+                let sourceZone = null;
+                if (selectedCard.menuOrigin === 'deck') {
+                    sourceZone = players[selectedCard.player].deck;
+                } else if (selectedCard.menuOrigin === 'graveyard') {
+                    sourceZone = players[selectedCard.player].graveyard;
+                }
 
-                 if (sourceZone) {
+                if (sourceZone) {
                     const index = sourceZone.findIndex(c => c.id === selectedCard.data.id);
                     if (index > -1) {
                         const cardToTake = sourceZone.splice(index, 1)[0];
