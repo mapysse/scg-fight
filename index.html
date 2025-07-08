@@ -294,10 +294,10 @@
         }
         .board {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(3, 1fr);
             gap: 5px;
-            width: 270px;
+            width: 450px;
             height: 400px;
             border: 2px solid #34495e;
             background-color: #34495e;
@@ -1431,7 +1431,7 @@ function renderCurrentEditingDeckDisplay() {
             boardElement.innerHTML = '';
             const board = players[playerNumber].board;
 
-            for (let i = 0; i < 9; i++) {
+            for (let i = 0; i < 15; i++) {
                 const slotDiv = document.createElement('div');
                 slotDiv.classList.add('board-slot');
                 slotDiv.dataset.slotIndex = i;
