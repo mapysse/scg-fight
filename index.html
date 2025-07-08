@@ -304,24 +304,40 @@
             max-height: 100%;
         }
 
-        .board {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 5px;
-            width: 75%; /* Prend 90% de la largeur disponible */
-            max-width: 370px; /* Optionnel : empêche la grille de devenir trop large sur de grands écrans */
-            height: auto; /* Laisse la hauteur s'adapter au contenu */
-            /* Ou vous pouvez définir une hauteur maximale pour éviter qu'elle soit trop grande */
-            max-height: 350px; /* Exemple de hauteur maximale */
-            border: 1px solid #34495e;
-            background-color: #34495e;
-            padding: 5px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            position: relative;
-            z-index: 10;
-        }
+.board {
+    display: grid;
+    /* Conservez ces propriétés pour les écrans plus grands, si nécessaire */
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 5px;
+    width: 75%;
+    max-width: 450px;
+    height: auto;
+    max-height: 400px;
+    border: 2px solid #34495e;
+    background-color: #34495e;
+    padding: 5px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 10;
+}
+
+/* --- Media Query pour les iPhones et petits écrans --- */
+@media (max-width: 420px) { /* Cible les écrans jusqu'à 420px de large, couvrant la plupart des iPhones */
+    .board {
+        /* Diminuez le nombre de colonnes si possible */
+        grid-template-columns: repeat(5, 1fr);
+        /* max-width: unset; */ /* Laissez le 75% prendre le dessus */
+        max-width: unset;
+        width: 95vw; /* Occupe 95% de la largeur du viewport pour s'assurer que ça rentre */
+        gap: 3px; /* Réduit l'espace entre les éléments */
+        padding: 3px; /* Réduit le rembourrage interne */
+        /* Assurez-vous que le margin ne cause pas de débordement */
+        margin-left: auto;
+        margin-right: auto; /* Centre la grille pour ne pas qu'elle soit collée à un bord */
+    }
+}
         .board-slot {
             width: 80px;
             height: 120px;
