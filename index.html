@@ -985,11 +985,6 @@
                 img.src = cardData.path;
                 img.alt = `Carte ${cardData.id}`;
                 cardDiv.appendChild(img);
-                if (isPreview) {
-                    const span = document.createElement('span');
-                    span.textContent = cardData.id;
-                    cardDiv.appendChild(span);
-                }
             }
             return cardDiv;
         }
