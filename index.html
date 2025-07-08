@@ -932,7 +932,7 @@
         let currentEditingDeck = { name: '', cards: [] }; // Deck en cours de modification/création
 
         // Un seul joueur maintenant
-        let player1 = { deck: [], hand: [], graveyard: [], board: Array(15).fill(null), lp: 8000, selectedDeckName: null }; // Board size changed to 15
+        let player1 = { deck: [], hand: [], graveyard: [], board: Array(15).fill(null), lp: 60, selectedDeckName: null }; // Board size changed to 15
         let players = { '1': player1 }; // L'objet players ne contient plus que le joueur 1
 
         let selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null, isFaceDown: false, isRotated: false }; // Added isFaceDown and isRotated
@@ -1313,8 +1313,8 @@
         // --- Fonctions Duel (adaptées pour un seul joueur - inchangées) ---
 
         function initializeDuel() {
-            lpCounters['1'].textContent = '8000';
-            player1.lp = 8000;
+            lpCounters['1'].textContent = '60';
+            player1.lp = 60;
 
             player1.deck = [];
             player1.hand = [];
