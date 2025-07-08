@@ -758,7 +758,7 @@
              document.querySelectorAll('.card.selected-for-move').forEach(card => {
                 card.classList.remove('selected-for-move');
             });
-             // Réafficher les boutons par défaut de la modale carte
+             // Réafficher les boutons par default de la modale carte
             modalGraveyardBtn.style.display = 'inline-block';
             modalDeckBtn.style.display = 'inline-block';
         }
@@ -1016,33 +1016,36 @@
 
             cardModal.classList.remove('active'); // Ferme la modale
 
-            // Réinitialise tous les slots pour enlever d'éventuels anciens marquages
+            // --- IMPORTANT : Nettoie tous les états de ciblage et de sélection avant d'en établir de nouveaux ---
             document.querySelectorAll('.board-slot').forEach(slot => {
                 slot.classList.remove('targetable');
             });
             document.querySelectorAll('.card.selected-for-move').forEach(card => {
                 card.classList.remove('selected-for-move');
             });
+            // --- Fin du nettoyage ---
+
 
             // Si la carte vient de la main, on active le mode "poser sur plateau"
             if (selectedCard.location === 'hand') {
-                isMovingCard = true; // IMPORTANT : Active le drapeau de déplacement/pose
-                alert("Clique maintenant sur un emplacement libre du plateau pour poser cette carte.");
+                isMovingCard = true; // Active le drapeau de déplacement/pose
+
                 // Rendre les slots vides "targetable" pour le joueur actuel
                 const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
                 boardSlots.forEach(slot => {
                     const idx = parseInt(slot.dataset.slotIndex);
+                    // Un slot est targetable s'il est vide
                     if (players[selectedCard.player].board[idx] === null) {
                         slot.classList.add('targetable');
                     }
                 });
+                alert("Clique maintenant sur un emplacement libre du plateau pour poser cette carte."); // L'alerte vient APRÈS l'activation des slots
+
             }
             // Si la carte vient du plateau, on active le mode "déplacer sur plateau"
             else if (selectedCard.location === 'board') {
                 isMovingCard = true; // Active le drapeau de déplacement
                 selectedCard.element.classList.add('selected-for-move'); // Visuellement marquer la carte
-
-                alert("Clique sur un emplacement LIBRE sur le plateau pour y déplacer la carte. Re-clique sur la carte marquée pour annuler.");
 
                 // Rendre les slots targetable pour le placement (y compris le slot d'origine)
                 const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
@@ -1053,6 +1056,8 @@
                         slot.classList.add('targetable');
                     }
                 });
+                alert("Clique sur un emplacement LIBRE sur le plateau pour y déplacer la carte. Re-clique sur la carte marquée pour annuler."); // L'alerte vient APRÈS l'activation des slots
+
             } else if (selectedCard.location === 'grid') { // Carte sélectionnée depuis le menu de recherche (deck/cimetière)
                 // Dans ce cas, l'action est de prendre la carte pour la main, pas de la poser sur le plateau.
                 const targetHand = players[selectedCard.player].hand;
@@ -1204,6 +1209,10 @@
             });
 
             // Attacher les gestionnaires de clic aux slots du plateau
+            // IMPORTANT : Cette ligne attache les écouteurs UNE FOIS au chargement.
+            // Si le board est recréé (ex: renderBoard), les anciens listeners sont perdus.
+            // On doit s'assurer que renderBoard() ou d'autres fonctions réattachent les listeners si nécessaire,
+            // ou bien on utilise une délégation d'événements (plus robuste pour les éléments dynamiques).
             document.querySelectorAll('.board-slot').forEach(slot => {
                 slot.addEventListener('click', handleBoardSlotClick);
             });
