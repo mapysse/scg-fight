@@ -708,6 +708,8 @@
                     slotDiv.appendChild(span);
                 }
                 boardElement.appendChild(slotDiv);
+                // ATTENTION : Cette ligne cruciale attache l'écouteur à chaque slot après sa création.
+                slotDiv.addEventListener('click', handleBoardSlotClick);
             }
         }
 
@@ -1007,7 +1009,7 @@
             renderDeck(playerNum);
             cardModal.classList.remove('active');
             deckGraveyardMenu.classList.remove('active');
-            console.log(`Carte ${selectedCard.data.id} renvoyée au deck du J${playerNumber} et deck mélangé.`);
+            console.log(`Carte ${selectedCard.data.id} renvoyée au deck du J${playerNum} et deck mélangé.`);
             resetSelectedCard();
         }
 
@@ -1211,14 +1213,10 @@
                 });
             });
 
-            // Attacher les gestionnaires de clic aux slots du plateau
-            // IMPORTANT : Cette ligne attache les écouteurs UNE FOIS au chargement.
-            // Si le board est recréé (ex: renderBoard), les anciens listeners sont perdus.
-            // On doit s'assurer que renderBoard() ou d'autres fonctions réattachent les listeners si nécessaire,
-            // ou bien on utilise une délégation d'événements (plus robuste pour les éléments dynamiques).
-            document.querySelectorAll('.board-slot').forEach(slot => {
-                slot.addEventListener('click', handleBoardSlotClick);
-            });
+            // L'écouteur global ici est moins pertinent car renderBoard gère maintenant les listeners pour chaque slot recréé.
+            // document.querySelectorAll('.board-slot').forEach(slot => {
+            //     slot.addEventListener('click', handleBoardSlotClick);
+            // });
 
             // Boutons de la modale de carte
             modalCloseBtn.addEventListener('click', () => {
