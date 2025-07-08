@@ -323,19 +323,13 @@
     z-index: 10;
 }
 
-/* --- Media Query pour les iPhones et petits écrans --- */
-@media (max-width: 420px) { /* Cible les écrans jusqu'à 420px de large, couvrant la plupart des iPhones */
+@media (max-width: 450px) {
     .board {
-        /* Diminuez le nombre de colonnes si possible */
-        grid-template-columns: repeat(5, 1fr);
-        /* max-width: unset; */ /* Laissez le 75% prendre le dessus */
-        max-width: unset;
-        width: 95vw; /* Occupe 95% de la largeur du viewport pour s'assurer que ça rentre */
-        gap: 3px; /* Réduit l'espace entre les éléments */
-        padding: 3px; /* Réduit le rembourrage interne */
-        /* Assurez-vous que le margin ne cause pas de débordement */
-        margin-left: auto;
-        margin-right: auto; /* Centre la grille pour ne pas qu'elle soit collée à un bord */
+        /* Chaque colonne aura une taille minimale de 50px et maximale de 1 fraction */
+        grid-template-columns: repeat(5, minmax(50px, 1fr));
+        width: 98vw; /* Ou 95vw, pour être sûr */
+        gap: 2px; /* Réduisez encore le gap */
+        padding: 2px; /* Réduisez encore le padding */
     }
 }
         .board-slot {
