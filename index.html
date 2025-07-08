@@ -793,6 +793,7 @@
             </div>
             <div class="modal-deck-actions">
                 <p>Cartes dans le deck: <span id="currentDeckCardCount">0</span> / 50 (Minimum)</p>
+                <p>PE: <span id="peCardCount">0</span> / 20 | OB: <span id="obCardCount">0</span> / 15 | PI: <span id="piCardCount">0</span> / 15</p>
                 <button id="saveDeckBtn">Sauvegarder le Deck</button>
                 <button id="exportDeckBtn">Exporter le Deck</button>
                 <button id="clearDeckBtn">Vider le Deck</button>
@@ -809,6 +810,11 @@
         const TOTAL_PE_CARDS = 126;
         const TOTAL_OB_CARDS = 67;
         const TOTAL_PI_CARDS = 62;
+
+        // Nouvelles constantes pour les limites de cartes par type
+        const MAX_PE_CARDS = 20;
+        const MAX_OB_CARDS = 15;
+        const MAX_PI_CARDS = 15;
 
         // --- Variables Globales pour l'état du jeu ---
         let allAvailableCards = []; // Liste de toutes les cartes disponibles pour la gestion de deck
@@ -852,6 +858,9 @@
         const deckEditModalTitle = document.getElementById('deckEditModalTitle');
         const deckNameInput = document.getElementById('deckNameInput');
         const currentDeckCardCount = document.getElementById('currentDeckCardCount');
+        const peCardCountSpan = document.getElementById('peCardCount');
+        const obCardCountSpan = document.getElementById('obCardCount');
+        const piCardCountSpan = document.getElementById('piCardCount');
         const saveDeckBtn = document.getElementById('saveDeckBtn');
         const exportDeckBtn = document.getElementById('exportDeckBtn');
         const clearDeckBtn = document.getElementById('clearDeckBtn');
@@ -1011,9 +1020,21 @@
         function renderCurrentEditingDeck() {
             deckCardsDisplay.innerHTML = '';
             const cardCounts = {};
+            let peCount = 0;
+            let obCount = 0;
+            let piCount = 0;
+
             currentEditingDeck.forEach(card => {
                 cardCounts[card.id] = (cardCounts[card.id] || 0) + 1;
+                if (card.type === 'PE') peCount++;
+                else if (card.type === 'OB') obCount++;
+                else if (card.type === 'PI') piCount++;
             });
+
+            peCardCountSpan.textContent = peCount;
+            obCardCountSpan.textContent = obCount;
+            piCardCountSpan.textContent = piCount;
+
 
             // Display cards in the editing modal
             const uniqueCardsInDeck = Array.from(new Set(currentEditingDeck.map(c => c.id)))
@@ -1042,6 +1063,24 @@
                 // Card is in deck, remove one instance
                 currentEditingDeck.splice(index, 1);
             } else {
+                // Check limits before adding
+                const currentPeCount = currentEditingDeck.filter(c => c.type === 'PE').length;
+                const currentObCount = currentEditingDeck.filter(c => c.type === 'OB').length;
+                const currentPiCount = currentEditingDeck.filter(c => c.type === 'PI').length;
+
+                if (cardData.type === 'PE' && currentPeCount >= MAX_PE_CARDS) {
+                    alert(`Vous avez atteint la limite de ${MAX_PE_CARDS} cartes de type PE dans votre deck.`);
+                    return;
+                }
+                if (cardData.type === 'OB' && currentObCount >= MAX_OB_CARDS) {
+                    alert(`Vous avez atteint la limite de ${MAX_OB_CARDS} cartes de type OB dans votre deck.`);
+                    return;
+                }
+                if (cardData.type === 'PI' && currentPiCount >= MAX_PI_CARDS) {
+                    alert(`Vous avez atteint la limite de ${MAX_PI_CARDS} cartes de type PI dans votre deck.`);
+                    return;
+                }
+
                 // Card not in deck, add it
                 currentEditingDeck.push(cardData);
             }
@@ -1056,6 +1095,23 @@
             }
             if (currentEditingDeck.length < MIN_DECK_SIZE) {
                 alert(`Un deck doit contenir au moins ${MIN_DECK_SIZE} cartes. Votre deck en a ${currentEditingDeck.length}.`);
+                return;
+            }
+
+            const currentPeCount = currentEditingDeck.filter(c => c.type === 'PE').length;
+            const currentObCount = currentEditingDeck.filter(c => c.type === 'OB').length;
+            const currentPiCount = currentEditingDeck.filter(c => c.type === 'PI').length;
+
+            if (currentPeCount > MAX_PE_CARDS) {
+                alert(`Le deck contient trop de cartes PE (${currentPeCount}/${MAX_PE_CARDS}). Veuillez ajuster.`);
+                return;
+            }
+            if (currentObCount > MAX_OB_CARDS) {
+                alert(`Le deck contient trop de cartes OB (${currentObCount}/${MAX_OB_CARDS}). Veuillez ajuster.`);
+                return;
+            }
+            if (currentPiCount > MAX_PI_CARDS) {
+                alert(`Le deck contient trop de cartes PI (${currentPiCount}/${MAX_PI_CARDS}). Veuillez ajuster.`);
                 return;
             }
 
@@ -1107,6 +1163,17 @@
                             alert("Aucune carte valide n'a pu être importée. Vérifiez que les IDs de cartes correspondent.");
                             return;
                         }
+
+                        // Check limits for imported deck
+                        const importedPeCount = importedCards.filter(c => c.type === 'PE').length;
+                        const importedObCount = importedCards.filter(c => c.type === 'OB').length;
+                        const importedPiCount = importedCards.filter(c => c.type === 'PI').length;
+
+                        if (importedPeCount > MAX_PE_CARDS || importedObCount > MAX_OB_CARDS || importedPiCount > MAX_PI_CARDS) {
+                            alert(`Le deck importé ne respecte pas les limites de cartes par type (PE:${importedPeCount}/${MAX_PE_CARDS}, OB:${importedObCount}/${MAX_OB_CARDS}, PI:${importedPiCount}/${MAX_PI_CARDS}). L'importation a été annulée.`);
+                            return;
+                        }
+
                         if (savedDecks[importedData.name] && !confirm(`Un deck nommé "${importedData.name}" existe déjà. Voulez-vous le remplacer ?`)) {
                             return;
                         }
@@ -1178,6 +1245,17 @@
                 alert(`Le deck sélectionné doit contenir au moins ${MIN_DECK_SIZE} cartes.`);
                 return;
             }
+
+            // Vérification des limites de cartes avant de démarrer le duel (au cas où le deck aurait été modifié manuellement dans localStorage)
+            const peCount = deckDataP1.filter(c => c.type === 'PE').length;
+            const obCount = deckDataP1.filter(c => c.type === 'OB').length;
+            const piCount = deckDataP1.filter(c => c.type === 'PI').length;
+
+            if (peCount > MAX_PE_CARDS || obCount > MAX_OB_CARDS || piCount > MAX_PI_CARDS) {
+                alert(`Le deck sélectionné ne respecte pas les limites de cartes par type (PE:${peCount}/${MAX_PE_CARDS}, OB:${obCount}/${MAX_OB_CARDS}, PI:${piCount}/${MAX_PI_CARDS}). Veuillez corriger le deck.`);
+                return;
+            }
+
 
             player1.selectedDeckName = selectedDeckP1.value;
             player1.deck = deckDataP1;
