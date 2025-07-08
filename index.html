@@ -464,7 +464,7 @@
         <div class="player-area player1">
             <div class="lp-counter">
                 <button class="lp-minus" data-player="1">-</button>
-                <span class="lp-value" id="lp1">40</span>
+                <span class="lp-value" id="lp1">8000</span>
                 <button class="lp-plus" data-player="1">+</button>
             </div>
             <div class="board" id="board1">
@@ -481,7 +481,7 @@
         <div class="player-area player2">
             <div class="lp-counter">
                 <button class="lp-minus" data-player="2">-</button>
-                <span class="lp-value" id="lp2">40</span>
+                <span class="lp-value" id="lp2">8000</span>
                 <button class="lp-plus" data-player="2">+</button>
             </div>
             <div class="board" id="board2">
@@ -763,6 +763,31 @@
             modalDeckBtn.style.display = 'inline-block';
         }
 
+        /**
+         * Pioche une carte du deck d'un joueur et l'ajoute à sa main.
+         * @param {number} playerNumber - Le numéro du joueur (1 ou 2).
+         */
+        function drawCard(playerNumber) {
+            const player = players[playerNumber];
+            if (player.deck.length > 0) {
+                const drawnCard = player.deck.shift(); // Prend la première carte (du dessus du deck)
+                player.hand.push(drawnCard); // L'ajoute à la main
+
+                // Met à jour l'affichage
+                renderHand(playerNumber);
+                renderDeck(playerNumber);
+
+                // Ferme le menu Deck/Cimetière et réinitialise la sélection
+                deckGraveyardMenu.classList.remove('active');
+                resetSelectedCard();
+
+                console.log(`J${playerNumber} a pioché : ${drawnCard.id}`);
+            } else {
+                alert(`Le deck du joueur ${playerNumber} est vide !`);
+            }
+        }
+
+
         // --- Gestion des Clics ---
 
         /**
@@ -971,7 +996,7 @@
             renderDeck(playerNum);
             cardModal.classList.remove('active');
             deckGraveyardMenu.classList.remove('active');
-            console.log(`Carte ${selectedCard.data.id} renvoyée au deck du J${playerNum} et deck mélangé.`);
+            console.log(`Carte ${selectedCard.data.id} renvoyée au deck du J${playerNumber} et deck mélangé.`);
             resetSelectedCard();
         }
 
@@ -1142,10 +1167,10 @@
 
             // Attacher les écouteurs d'événements
             document.querySelectorAll('.lp-plus').forEach(button => {
-                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), 1));
+                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), 100));
             });
             document.querySelectorAll('.lp-minus').forEach(button => {
-                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), -1));
+                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), -100));
             });
 
             document.getElementById('deck1').addEventListener('click', () => handleDeckClick(1));
