@@ -464,7 +464,7 @@
         <div class="player-area player1">
             <div class="lp-counter">
                 <button class="lp-minus" data-player="1">-</button>
-                <span class="lp-value" id="lp1">8000</span>
+                <span class="lp-value" id="lp1">40</span>
                 <button class="lp-plus" data-player="1">+</button>
             </div>
             <div class="board" id="board1">
@@ -481,7 +481,7 @@
         <div class="player-area player2">
             <div class="lp-counter">
                 <button class="lp-minus" data-player="2">-</button>
-                <span class="lp-value" id="lp2">8000</span>
+                <span class="lp-value" id="lp2">40</span>
                 <button class="lp-plus" data-player="2">+</button>
             </div>
             <div class="board" id="board2">
@@ -1142,10 +1142,10 @@
 
             // Attacher les écouteurs d'événements
             document.querySelectorAll('.lp-plus').forEach(button => {
-                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), 100));
+                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), 1));
             });
             document.querySelectorAll('.lp-minus').forEach(button => {
-                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), -100));
+                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), -1));
             });
 
             document.getElementById('deck1').addEventListener('click', () => handleDeckClick(1));
