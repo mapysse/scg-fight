@@ -129,9 +129,12 @@
             color: #95a5a6;
             transition: background-color 0.2s;
         }
-        .board-slot:hover.targetable {
+        .board-slot.targetable { /* Retire le :hover */
             background-color: #3498db; /* Bleu vif */
             cursor: pointer;
+        }
+        .board-slot.targetable:hover {
+            background-color: #2980b9; /* Un bleu légèrement plus foncé pour le survol */
         }
 
         /* Zones Deck et Cimetière */
