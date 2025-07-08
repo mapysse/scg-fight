@@ -792,7 +792,7 @@
                 <input type="text" id="deckNameInput" placeholder="Nom du deck" required>
             </div>
             <div class="modal-deck-actions">
-                <p>Cartes dans le deck: <span id="currentDeckCardCount">0</span> / 40 (Minimum)</p>
+                <p>Cartes dans le deck: <span id="currentDeckCardCount">0</span> / 50 (Minimum)</p>
                 <button id="saveDeckBtn">Sauvegarder le Deck</button>
                 <button id="exportDeckBtn">Exporter le Deck</button>
                 <button id="clearDeckBtn">Vider le Deck</button>
@@ -805,10 +805,10 @@
 
     <script>
         // --- Configuration Générale ---
-        const MIN_DECK_SIZE = 40;
-        const TOTAL_PE_CARDS = 115;
+        const MIN_DECK_SIZE = 50;
+        const TOTAL_PE_CARDS = 126;
         const TOTAL_OB_CARDS = 67;
-        const TOTAL_PI_CARDS = 60;
+        const TOTAL_PI_CARDS = 62;
 
         // --- Variables Globales pour l'état du jeu ---
         let allAvailableCards = []; // Liste de toutes les cartes disponibles pour la gestion de deck
