@@ -11,12 +11,17 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            /* Changement ici: aligne au début pour laisser le contenu défiler */
+            justify-content: flex-start;
             align-items: center;
+            /* Garde une hauteur minimale, mais le contenu peut la dépasser */
             min-height: 100vh;
             background-color: #2c3e50; /* Bleu foncé */
             color: #ecf0f1; /* Blanc cassé */
-            overflow: hidden;
+            /* Permet le défilement vertical si le contenu dépasse */
+            overflow-y: auto;
+            /* Empêche le défilement horizontal */
+            overflow-x: hidden;
         }
 
         /* Conteneur principal pour les deux joueurs */
@@ -24,7 +29,8 @@
             display: flex;
             flex-direction: column;
             width: 100vw;
-            height: 100vh;
+            /* Permet au contenu de s'étendre au-delà de la hauteur initiale */
+            min-height: 100vh;
             justify-content: space-between;
             align-items: center;
         }
@@ -39,6 +45,9 @@
             padding: 10px;
             box-sizing: border-box;
             position: relative;
+            /* Ajoute un peu d'espace entre les zones de joueurs pour le défilement */
+            margin-bottom: 20px;
+            margin-top: 20px;
         }
 
         /* Rotation pour le Joueur 2 */
@@ -740,6 +749,7 @@
             selectedCard.location = null;
             selectedCard.player = null;
             selectedCard.boardIndex = null;
+            selectedCard.menuOrigin = null; // Important pour les cartes venant des menus
             isMovingCard = false;
             // Supprimer la classe de ciblage des slots
             document.querySelectorAll('.board-slot.targetable').forEach(slot => {
@@ -748,15 +758,18 @@
              document.querySelectorAll('.card.selected-for-move').forEach(card => {
                 card.classList.remove('selected-for-move');
             });
+             // Réafficher les boutons par défaut de la modale carte
+            modalGraveyardBtn.style.display = 'inline-block';
+            modalDeckBtn.style.display = 'inline-block';
         }
 
         // --- Gestion des Clics ---
 
         /**
-         * Gère le clic sur une carte (main ou plateau).
+         * Gère le clic sur une carte (main ou plateau ou depuis une grille de sélection).
          * @param {HTMLElement} cardElement - L'élément DOM de la carte.
          * @param {object} cardData - Les données de la carte.
-         * @param {string} location - 'hand' ou 'board'.
+         * @param {string} location - 'hand', 'board', 'grid' (pour deck/cimetière).
          * @param {number} playerNumber - Le numéro du joueur.
          * @param {number} [boardIndex=null] - L'index sur le plateau si la carte vient du board.
          */
@@ -767,7 +780,7 @@
                     // C'est un clic pour sélectionner la carte à déplacer
                     selectedCard.element = cardElement;
                     selectedCard.data = cardData;
-                    selectedCard.location = location;
+                    selectedCard.location = location; // Toujours 'board'
                     selectedCard.player = playerNumber;
                     selectedCard.boardIndex = boardIndex;
 
@@ -779,19 +792,14 @@
                     const boardSlots = document.querySelectorAll(`#board${playerNumber} .board-slot`);
                     boardSlots.forEach(slot => {
                         const idx = parseInt(slot.dataset.slotIndex);
-                        if (players[playerNumber].board[idx] === null || idx === boardIndex) { // Peut aussi revenir à son slot d'origine
+                        // On peut déplacer sur un slot vide ou sur son slot d'origine (pour annuler le déplacement par exemple)
+                        if (players[playerNumber].board[idx] === null || idx === boardIndex) {
                             slot.classList.add('targetable');
                         } else {
                             slot.classList.remove('targetable');
                         }
                     });
                     return; // Ne pas ouvrir la modale détaillée pour le moment
-                } else if (location === 'board' && playerNumber === selectedCard.player) {
-                     // Si on reclique sur le même slot alors qu'on est en mode déplacement
-                     isMovingCard = false;
-                     resetSelectedCard();
-                     alert("Déplacement annulé.");
-                     return;
                 }
             }
 
@@ -799,23 +807,31 @@
             // Clic normal pour ouvrir la modale détaillée
             selectedCard.element = cardElement;
             selectedCard.data = cardData;
-            selectedCard.location = location;
+            selectedCard.location = location; // 'hand', 'board' ou 'grid' (si vient d'une recherche)
             selectedCard.player = playerNumber;
             selectedCard.boardIndex = boardIndex;
 
             modalCardDisplay.style.backgroundImage = `url(${cardData.path})`;
             cardModal.classList.add('active');
 
-            // Ajuster le texte du bouton "Déplacer" selon la source de la carte
+            // Ajuster le texte du bouton "Déplacer" et la visibilité des autres boutons
+            modalGraveyardBtn.style.display = 'inline-block';
+            modalDeckBtn.style.display = 'inline-block';
+
             if (location === 'hand') {
                 modalMoveCardBtn.textContent = 'Poser sur Plateau';
             } else if (location === 'board') {
                 modalMoveCardBtn.textContent = 'Déplacer sur Plateau';
-            } else { // Si on clique sur une carte dans la grille de sélection (deck/cimetière)
-                modalMoveCardBtn.textContent = 'Prendre la carte';
-                // Masquer les boutons inutiles ici si la carte n'est pas sur le plateau/main
-                modalGraveyardBtn.style.display = 'none';
-                modalDeckBtn.style.display = 'none';
+            } else if (location === 'grid') { // Carte sélectionnée depuis le menu Chercher (deck ou cimetière)
+                modalMoveCardBtn.textContent = 'Prendre la carte (main)'; // Action par défaut : vers la main
+                // Si la carte vient du deck, elle ne peut pas être remise au deck via ce menu.
+                if (selectedCard.menuOrigin === 'deck') {
+                    modalDeckBtn.style.display = 'none';
+                }
+                // Si la carte vient du cimetière, elle ne peut pas être remise au cimetière via ce menu.
+                if (selectedCard.menuOrigin === 'graveyard') {
+                    modalGraveyardBtn.style.display = 'none';
+                }
             }
         }
 
@@ -829,30 +845,23 @@
             const slotIndex = parseInt(slotDiv.dataset.slotIndex);
             const playerNum = parseInt(slotDiv.dataset.player);
 
+            // Ne rien faire si ce n'est pas un slot "targetable" (i.e., non préparé pour un mouvement)
+            if (!slotDiv.classList.contains('targetable')) {
+                return;
+            }
+
             // S'assurer que le clic est sur le plateau du joueur correct pour la carte sélectionnée
             if (!selectedCard.data || selectedCard.player !== playerNum) {
-                return; // Ne fait rien si aucune carte n'est sélectionnée ou si ce n'est pas le joueur actif
+                resetSelectedCard(); // Annule le mode déplacement/pose si clic sur un slot incorrect
+                return;
             }
 
             const targetPlayer = players[playerNum];
 
-            // Si l'emplacement est déjà occupé et que la carte vient du plateau (déplacement)
-            if (targetPlayer.board[slotIndex] !== null && selectedCard.location === 'board') {
-                // Si c'est le slot d'origine de la carte, on ne fait rien ou on annule le déplacement
-                if (slotIndex === selectedCard.boardIndex) {
-                    alert('Déplacement annulé : carte remise à son emplacement d\'origine.');
-                    resetSelectedCard();
-                    renderBoard(playerNum);
-                    return;
-                }
-                alert('Cet emplacement est déjà occupé !');
-                return;
-            }
-
-            // Si l'emplacement est occupé et que la carte vient de la main (pose)
-             if (targetPlayer.board[slotIndex] !== null && selectedCard.location === 'hand') {
-                alert('Cet emplacement est déjà occupé !');
-                return;
+            // Si l'emplacement est déjà occupé ET que ce n'est PAS le slot d'origine de la carte
+            if (targetPlayer.board[slotIndex] !== null && slotIndex !== selectedCard.boardIndex) {
+                alert('Cet emplacement est déjà occupé ! Choisissez un emplacement vide.');
+                return; // Ne fait rien, reste en mode déplacement
             }
 
             // Exécuter le mouvement
@@ -864,8 +873,8 @@
                     targetPlayer.board[slotIndex] = cardToPlace;
                     renderHand(playerNum);
                     renderBoard(playerNum);
-                    cardModal.classList.remove('active'); // Fermer la modale si elle était ouverte
-                    resetSelectedCard();
+                    cardModal.classList.remove('active');
+                    deckGraveyardMenu.classList.remove('active'); // Fermer le menu de recherche si ouvert
                     console.log(`Carte ${cardToPlace.id} du J${playerNum} posée sur l'emplacement ${slotIndex}.`);
                 }
             } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
@@ -875,12 +884,13 @@
                     targetPlayer.board[selectedCard.boardIndex] = null; // Vider l'ancien slot
                     targetPlayer.board[slotIndex] = cardToMove; // Placer dans le nouveau slot
 
-                    renderBoard(playerNum); // Rafraîchir tout le plateau pour voir le mouvement
+                    renderBoard(playerNum);
                     cardModal.classList.remove('active');
-                    resetSelectedCard();
+                    deckGraveyardMenu.classList.remove('active');
                     console.log(`Carte ${cardToMove.id} du J${playerNum} déplacée de ${selectedCard.boardIndex} à ${slotIndex}.`);
                 }
             }
+            resetSelectedCard(); // Réinitialiser le mode après le mouvement
         }
 
         // --- Fonctions de Mouvement des Cartes ---
@@ -892,29 +902,27 @@
             if (!selectedCard.data) return;
 
             const playerNum = selectedCard.player;
-            const sourceLocation = selectedCard.location;
             const targetPlayer = players[playerNum];
 
-            // Retirer la carte de son emplacement actuel
-            if (sourceLocation === 'hand') {
+            // Retirer la carte de sa source
+            if (selectedCard.location === 'hand') {
                 const index = targetPlayer.hand.findIndex(c => c.id === selectedCard.data.id);
                 if (index > -1) targetPlayer.hand.splice(index, 1);
                 renderHand(playerNum);
-            } else if (sourceLocation === 'board' && selectedCard.boardIndex !== null) {
+            } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
                 targetPlayer.board[selectedCard.boardIndex] = null;
                 renderBoard(playerNum);
-            } else if (sourceLocation === 'graveyard') {
-                 // Si la carte est déjà au cimetière, la fonction est probablement appelée depuis le menu "chercher cimetière"
-                 // Dans ce cas, on ne fait rien car elle est déjà là.
-                 console.log("La carte est déjà au cimetière.");
-                 cardModal.classList.remove('active');
-                 deckGraveyardMenu.classList.remove('active');
-                 resetSelectedCard();
-                 return;
-            } else if (selectedCard.menuOrigin === 'deck') { // Si la carte vient de la modale de recherche du deck
+            } else if (selectedCard.menuOrigin === 'deck') { // Carte venant d'un "Chercher Deck"
                 const index = targetPlayer.deck.findIndex(c => c.id === selectedCard.data.id);
-                 if (index > -1) targetPlayer.deck.splice(index, 1);
-                 renderDeck(playerNum);
+                if (index > -1) targetPlayer.deck.splice(index, 1);
+                renderDeck(playerNum);
+            } else if (selectedCard.menuOrigin === 'graveyard') { // Carte venant d'un "Chercher Cimetière"
+                // Elle est déjà au cimetière, ne fait rien
+                console.log("La carte est déjà au cimetière.");
+                cardModal.classList.remove('active');
+                deckGraveyardMenu.classList.remove('active');
+                resetSelectedCard();
+                return;
             }
 
 
@@ -934,27 +942,27 @@
             if (!selectedCard.data) return;
 
             const playerNum = selectedCard.player;
-            const sourceLocation = selectedCard.location;
             const targetPlayer = players[playerNum];
 
-            // Retirer la carte de son emplacement actuel
-            if (sourceLocation === 'hand') {
+            // Retirer la carte de sa source
+            if (selectedCard.location === 'hand') {
                 const index = targetPlayer.hand.findIndex(c => c.id === selectedCard.data.id);
                 if (index > -1) targetPlayer.hand.splice(index, 1);
                 renderHand(playerNum);
-            } else if (sourceLocation === 'board' && selectedCard.boardIndex !== null) {
+            } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
                 targetPlayer.board[selectedCard.boardIndex] = null;
                 renderBoard(playerNum);
-            } else if (sourceLocation === 'deck') {
-                console.log("La carte est déjà dans le deck.");
-                cardModal.classList.remove('active');
-                deckGraveyardMenu.classList.remove('active');
-                resetSelectedCard();
-                return;
-            } else if (selectedCard.menuOrigin === 'graveyard') { // Si la carte vient de la modale de recherche du cimetière
-                 const index = targetPlayer.graveyard.findIndex(c => c.id === selectedCard.data.id);
-                 if (index > -1) targetPlayer.graveyard.splice(index, 1);
-                 renderGraveyard(playerNum);
+            } else if (selectedCard.menuOrigin === 'graveyard') { // Carte venant d'un "Chercher Cimetière"
+                const index = targetPlayer.graveyard.findIndex(c => c.id === selectedCard.data.id);
+                if (index > -1) targetPlayer.graveyard.splice(index, 1);
+                renderGraveyard(playerNum);
+            } else if (selectedCard.menuOrigin === 'deck') { // Carte venant d'un "Chercher Deck"
+                 // Elle est déjà dans le deck, ne fait rien
+                 console.log("La carte est déjà dans le deck.");
+                 cardModal.classList.remove('active');
+                 deckGraveyardMenu.classList.remove('active');
+                 resetSelectedCard();
+                 return;
             }
 
             // Ajouter la carte au deck et mélanger
@@ -968,7 +976,7 @@
         }
 
         /**
-         * Prépare le déplacement d'une carte sur le plateau.
+         * Prépare le déplacement d'une carte sur le plateau, ou la prend si elle vient d'une zone de recherche.
          */
         function prepareMoveOnBoard() {
             if (!selectedCard.data) return;
@@ -985,18 +993,16 @@
                     if (players[selectedCard.player].board[idx] === null) {
                         slot.classList.add('targetable');
                     } else {
-                        slot.classList.remove('targetable'); // Assurez-vous que les occupés ne sont pas targetable
+                        slot.classList.remove('targetable');
                     }
                 });
-                // Pas besoin de changer selectedCard.location, le handleBoardSlotClick gérera si ça vient de la main
             }
             // Si la carte vient du plateau, on active le mode "déplacer sur plateau"
             else if (selectedCard.location === 'board') {
                 isMovingCard = true; // Active le drapeau de déplacement
-                // Visuellement marquer la carte comme sélectionnée pour le déplacement
-                selectedCard.element.classList.add('selected-for-move');
+                selectedCard.element.classList.add('selected-for-move'); // Visuellement marquer la carte
 
-                alert("Clique sur un emplacement LIBRE sur le plateau pour y déplacer la carte. Re-clique sur la carte ou son emplacement pour annuler.");
+                alert("Clique sur un emplacement LIBRE sur le plateau pour y déplacer la carte. Re-clique sur la carte marquée pour annuler.");
 
                 // Rendre les slots targetable pour le placement (y compris le slot d'origine)
                 const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
@@ -1008,15 +1014,13 @@
                         slot.classList.remove('targetable');
                     }
                 });
-            } else { // Si la carte vient du menu de recherche (deck/cimetière) et qu'on veut la "prendre"
+            } else if (selectedCard.location === 'grid') { // Carte sélectionnée depuis le menu de recherche (deck/cimetière)
                  const targetHand = players[selectedCard.player].hand;
                  let sourceZone = null;
                  if (selectedCard.menuOrigin === 'deck') {
                      sourceZone = players[selectedCard.player].deck;
-                     menuTitle.textContent = `Piocher du Deck J${selectedCard.player}`;
                  } else if (selectedCard.menuOrigin === 'graveyard') {
                      sourceZone = players[selectedCard.player].graveyard;
-                     menuTitle.textContent = `Récupérer du Cimetière J${selectedCard.player}`;
                  }
 
                  if (sourceZone) {
@@ -1025,12 +1029,11 @@
                         const cardToTake = sourceZone.splice(index, 1)[0];
                         targetHand.push(cardToTake);
                         renderHand(selectedCard.player);
-                        renderDeck(selectedCard.player);
-                        renderGraveyard(selectedCard.player); // Rafraîchir pour le cimetière
-                        deckGraveyardMenu.classList.remove('active');
-                        cardModal.classList.remove('active');
+                        renderDeck(selectedCard.player); // Pour le compte du deck
+                        renderGraveyard(selectedCard.player); // Pour le compte du cimetière
+                        deckGraveyardMenu.classList.remove('active'); // Ferme le menu de sélection
                         alert(`Carte ${cardToTake.id} ajoutée à la main du J${selectedCard.player}.`);
-                        resetSelectedCard(); // Réinitialise selectedCard
+                        resetSelectedCard();
                     }
                 }
             }
@@ -1068,27 +1071,6 @@
         }
 
         /**
-         * Piocher une carte du deck vers la main.
-         * @param {number} playerNumber - Le numéro du joueur.
-         */
-        function drawCard(playerNumber) {
-            const currentDeck = players[playerNumber].deck;
-            const currentHand = players[playerNumber].hand;
-
-            if (currentDeck.length > 0) {
-                const card = currentDeck.pop();
-                currentHand.push(card);
-                renderHand(playerNumber);
-                renderDeck(playerNumber); // Mettre à jour le compte du deck
-                console.log(`Joueur ${playerNumber} a pioché ${card.id}.`);
-            } else {
-                alert(`Le deck du Joueur ${playerNumber} est vide !`);
-            }
-            deckGraveyardMenu.classList.remove('active');
-            resetSelectedCard();
-        }
-
-        /**
          * Affiche les cartes d'une zone (deck/cimetière) pour sélection ou consultation.
          * @param {string} zoneType - 'deck' ou 'graveyard'.
          * @param {number} playerNumber - Le numéro du joueur.
@@ -1098,39 +1080,37 @@
             let cardsInZone = [];
             if (zoneType === 'deck') {
                 cardsInZone = players[playerNumber].deck;
-                menuTitle.textContent = `Chercher dans le Deck J${playerNumber}`;
+                menuTitle.textContent = `Contenu du Deck J${playerNumber}`;
+                menuOptions.innerHTML = `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la mettre en main.</p>`;
             } else if (zoneType === 'graveyard') {
                 cardsInZone = players[playerNumber].graveyard;
-                menuTitle.textContent = `Voir le Cimetière J${playerNumber}`;
-            }
-
-            menuOptions.innerHTML = canRetrieve ? `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la récupérer.</p>` : `<p style="color:#eee;font-size:0.9em;">(Cimetière vide)</p>`;
-            if (zoneType === 'deck') {
-                menuOptions.innerHTML = `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la mettre en main.</p>`;
+                menuTitle.textContent = `Contenu du Cimetière J${playerNumber}`;
+                menuOptions.innerHTML = canRetrieve ? `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la récupérer en main.</p>` : `<p style="color:#eee;font-size:0.9em;">(Cimetière vide)</p>`;
             }
 
             cardSelectionGrid.innerHTML = '';
 
             if (cardsInZone.length === 0) {
-                cardSelectionGrid.innerHTML = `<p style="color: #999; text-align: center;">Cette zone est vide.</p>`;
+                cardSelectionGrid.innerHTML = `<p style="color: #999; text-align: center; margin-top: 20px;">Cette zone est vide.</p>`;
                 return;
             }
 
             // Créer une copie pour ne pas altérer le tableau original si on le mélange pour l'affichage
             const cardsToDisplay = [...cardsInZone];
 
-            // Si c'est le deck, on peut le trier par type/nom ou juste l'afficher tel quel.
-            // Pour l'instant, on l'affiche dans l'ordre où il est.
+            // Pour la recherche, il est souvent utile d'avoir les cartes triées (ex: par ID)
+            cardsToDisplay.sort((a, b) => a.id.localeCompare(b.id));
+
             cardsToDisplay.forEach(card => {
                 const cardDiv = createCardElement(card);
                 cardSelectionGrid.appendChild(cardDiv);
 
                 if (canRetrieve || zoneType === 'deck') { // Si on peut récupérer ou si c'est pour chercher dans le deck
                     cardDiv.addEventListener('click', () => {
-                        // Stocker temporairement la carte sélectionnée et son origine pour les actions de la modale
+                        // Stocker les infos de la carte sélectionnée via la grille
                         selectedCard.element = cardDiv;
                         selectedCard.data = card;
-                        selectedCard.location = null; // Important: ce n'est ni la main ni le plateau
+                        selectedCard.location = 'grid'; // Indique que la carte vient d'une grille de sélection
                         selectedCard.player = playerNumber;
                         selectedCard.boardIndex = null;
                         selectedCard.menuOrigin = zoneType; // Pour savoir d'où elle vient (deck ou cimetière)
@@ -1140,16 +1120,16 @@
                         cardModal.classList.add('active');
 
                         // Ajuster les boutons de la modale pour cette situation
-                        modalMoveCardBtn.textContent = 'Prendre la carte';
-                        modalGraveyardBtn.style.display = 'inline-block'; // Afficher pour pouvoir la bouger
+                        modalMoveCardBtn.textContent = 'Prendre la carte (main)';
+                        modalGraveyardBtn.style.display = 'inline-block';
                         modalDeckBtn.style.display = 'inline-block';
+
                         if (zoneType === 'deck') {
-                            modalDeckBtn.style.display = 'none'; // Pas de "remettre dans le deck" si on la prend du deck
+                            modalDeckBtn.style.display = 'none'; // On ne peut pas remettre au deck si on la prend du deck
                         }
                         if (zoneType === 'graveyard') {
-                            modalGraveyardBtn.style.display = 'none'; // Pas de "remettre au cimetière" si on la prend du cimetière
+                            modalGraveyardBtn.style.display = 'none'; // On ne peut pas remettre au cimetière si on la prend du cimetière
                         }
-                        // La modale de sélection (deckGraveyardMenu) reste ouverte derrière pour le moment
                     });
                 }
             });
@@ -1203,7 +1183,7 @@
                 resetSelectedCard();
             });
 
-            // Rendu initial
+            // Rendu initial de tous les éléments
             renderDeck(1);
             renderHand(1);
             renderBoard(1);
