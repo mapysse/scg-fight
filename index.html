@@ -183,13 +183,19 @@
             padding: 2px 0;
         }
 
-        /* --- Styles pour le Duel (copiés de votre dernier fichier) --- */
+        /* --- Styles pour le Duel (adaptés pour un seul joueur) --- */
+        #duel {
+            display: flex; /* Active flexbox for duel content */
+            justify-content: center; /* Center the player area */
+            width: 100%;
+        }
         .game-container {
             display: flex;
             flex-direction: column;
-            width: 100vw;
+            width: 95%; /* Adjust width for single player */
+            max-width: 600px; /* Max width for single player area */
             min-height: calc(100vh - 120px); /* Ajuste la hauteur pour laisser de la place aux tabs/header */
-            justify-content: space-between;
+            justify-content: flex-start; /* Align content to top */
             align-items: center;
             overflow-y: auto; /* Permet le défilement si le contenu est trop grand */
         }
@@ -197,16 +203,13 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 95%;
+            width: 100%;
             flex-grow: 1;
             padding: 10px;
             box-sizing: border-box;
             position: relative;
             margin-bottom: 20px;
             margin-top: 20px;
-        }
-        .player-area.player2 {
-            transform: rotate(180deg);
         }
         .card {
             width: 80px;
@@ -249,7 +252,6 @@
             border-radius: 6px;
             display: block;
             pointer-events: none;
-            transform: rotate(var(--player-rotation, 0deg));
         }
         .board {
             display: grid;
@@ -374,9 +376,6 @@
             font-weight: bold;
             z-index: 10;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-        .player-area.player2 .lp-counter {
-            transform: rotate(180deg);
         }
         .lp-counter button {
             background-color: #95a5a6;
@@ -575,20 +574,7 @@
             border-color: #f1c40f;
             box-shadow: 0 0 15px rgba(241, 196, 15, 0.8);
         }
-        .player-area.player2 .board,
-        .player-area.player2 .deck-graveyard-area,
-        .player-area.player2 .hand,
-        .player-area.player2 .toggle-hand-btn {
-            transform: rotate(180deg);
-        }
-        .player-area.player2 .card img {
-            transform: rotate(180deg);
-        }
-        .player-area.player2 .board-slot span,
-        .player-area.player2 .deck span,
-        .player-area.player2 .graveyard span {
-            transform: rotate(180deg);
-        }
+        /* Suppression des styles de rotation pour le joueur 2 */
 
         /* Styles spécifiques pour le modal de création/édition de deck */
         .modal {
@@ -755,31 +741,14 @@
                 <div class="board" id="board1">
                     </div>
                 <div class="deck-graveyard-area">
-                    <div class="deck" id="deck1"><span>Deck J1</span></div>
-                    <div class="graveyard" id="graveyard1"><span>Cimetière J1</span></div>
+                    <div class="deck" id="deck1"><span>Deck</span></div>
+                    <div class="graveyard" id="graveyard1"><span>Cimetière</span></div>
                 </div>
                 <button class="toggle-hand-btn" data-player="1">Masquer Ma Main</button>
                 <div class="hand" id="hand1">
                     </div>
             </div>
-
-            <div class="player-area player2">
-                <div class="lp-counter">
-                    <button class="lp-minus" data-player="2">-</button>
-                    <span class="lp-value" id="lp2">8000</span>
-                    <button class="lp-plus" data-player="2">+</button>
-                </div>
-                <div class="board" id="board2">
-                    </div>
-                <div class="deck-graveyard-area">
-                    <div class="deck" id="deck2"><span>Deck J2</span></div>
-                    <div class="graveyard" id="graveyard2"><span>Cimetière J2</span></div>
-                </div>
-                <button class="toggle-hand-btn" data-player="2">Masquer Ma Main</button>
-                <div class="hand" id="hand2">
-                    </div>
             </div>
-        </div>
 
         <div class="card-modal" id="cardModal">
             <div class="modal-content">
@@ -807,10 +776,10 @@
         <div class="modal" id="selectDeckModal">
             <div class="modal-content-deck">
                 <span class="close-button" id="closeSelectDeckModal">&times;</span>
-                <h2>Sélectionner un Deck pour le Duel</h2>
+                <h2>Sélectionner un Deck</h2>
                 <div id="available-decks-list">
                     </div>
-                <button id="start-duel-with-selected-decks" style="background-color: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Démarrer le Duel</button>
+                <button id="start-duel-with-selected-deck" style="background-color: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Démarrer le Duel</button>
             </div>
         </div>
     </div>
@@ -846,9 +815,9 @@
         let savedDecks = {}; // Stockage des decks par nom
         let currentEditingDeck = []; // Cartes du deck en cours d'édition
 
+        // Un seul joueur maintenant
         let player1 = { deck: [], hand: [], graveyard: [], board: Array(9).fill(null), lp: 8000, selectedDeckName: null };
-        let player2 = { deck: [], hand: [], graveyard: [], board: Array(9).fill(null), lp: 8000, selectedDeckName: null };
-        let players = { '1': player1, '2': player2 };
+        let players = { '1': player1 }; // L'objet players ne contient plus que le joueur 1
 
         let selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null };
         let isMovingCard = false;
@@ -890,18 +859,18 @@
 
         // --- Références DOM Duel ---
         const duelTab = document.getElementById('duel');
-        const lpCounters = { '1': document.getElementById('lp1'), '2': document.getElementById('lp2') };
-        const boards = { '1': document.getElementById('board1'), '2': document.getElementById('board2') };
-        const decks = { '1': document.getElementById('deck1'), '2': document.getElementById('deck2') };
-        const graveyards = { '1': document.getElementById('graveyard1'), '2': document.getElementById('graveyard2') };
-        const hands = { '1': document.getElementById('hand1'), '2': document.getElementById('hand2') };
-        const toggleHandBtns = document.querySelectorAll('.toggle-hand-btn');
+        const lpCounters = { '1': document.getElementById('lp1') }; // Plus que le LP du joueur 1
+        const boards = { '1': document.getElementById('board1') };
+        const decks = { '1': document.getElementById('deck1') };
+        const graveyards = { '1': document.getElementById('graveyard1') };
+        const hands = { '1': document.getElementById('hand1') };
+        const toggleHandBtns = document.querySelectorAll('.toggle-hand-btn'); // Toujours un NodeList, mais un seul bouton
 
-        // Modale de sélection de deck pour le duel
+        // Modale de sélection de deck pour le duel (simplifiée)
         const selectDeckModal = document.getElementById('selectDeckModal');
         const closeSelectDeckModal = document.getElementById('closeSelectDeckModal');
         const availableDecksList = document.getElementById('available-decks-list');
-        const startDuelWithSelectedDecksBtn = document.getElementById('start-duel-with-selected-decks');
+        const startDuelWithSelectedDeckBtn = document.getElementById('start-duel-with-selected-deck'); // Renommé
 
         // --- Fonctions Utilitaires ---
 
@@ -1155,26 +1124,20 @@
             reader.readAsText(file);
         }
 
-        // --- Fonctions Duel ---
+        // --- Fonctions Duel (adaptées pour un seul joueur) ---
 
         function initializeDuel() {
-            // Réinitialiser les LP à 8000
+            // Réinitialiser les LP à 8000 pour le joueur 1
             lpCounters['1'].textContent = '8000';
-            lpCounters['2'].textContent = '8000';
             player1.lp = 8000;
-            player2.lp = 8000;
 
-            // Réinitialiser les états des joueurs
+            // Réinitialiser l'état du joueur 1
             player1.deck = [];
             player1.hand = [];
             player1.graveyard = [];
             player1.board = Array(9).fill(null);
-            player2.deck = [];
-            player2.hand = [];
-            player2.graveyard = [];
-            player2.board = Array(9).fill(null);
 
-            // Ouvrir la modale de sélection de deck
+            // Ouvrir la modale de sélection de deck pour le joueur 1
             renderAvailableDecksForSelection();
             selectDeckModal.classList.add('active');
         }
@@ -1183,11 +1146,11 @@
             availableDecksList.innerHTML = '';
             const deckNames = Object.keys(savedDecks);
             if (deckNames.length === 0) {
-                availableDecksList.innerHTML = '<p>Aucun deck sauvegardé. Créez des decks dans l\'onglet "Gestion des Decks" pour commencer un duel.</p>';
-                startDuelWithSelectedDecksBtn.disabled = true;
+                availableDecksList.innerHTML = '<p>Aucun deck sauvegardé. Créez un deck dans l\'onglet "Gestion des Decks" pour commencer un duel.</p>';
+                startDuelWithSelectedDeckBtn.disabled = true;
                 return;
             }
-            startDuelWithSelectedDelectedDecksBtn.disabled = false;
+            startDuelWithSelectedDeckBtn.disabled = false;
 
             deckNames.forEach(deckName => {
                 const deckSize = savedDecks[deckName].length;
@@ -1195,9 +1158,7 @@
                 div.classList.add('deck-selection-item');
                 div.innerHTML = `
                     <input type="radio" name="player1-deck" value="${deckName}" id="p1-${deckName}">
-                    <label for="p1-${deckName}">J1: ${deckName} (${deckSize} cartes)</label>
-                    <input type="radio" name="player2-deck" value="${deckName}" id="p2-${deckName}" style="margin-left: 20px;">
-                    <label for="p2-${deckName}">J2: ${deckName} (${deckSize} cartes)</label>
+                    <label for="p1-${deckName}">${deckName} (${deckSize} cartes)</label>
                 `;
                 availableDecksList.appendChild(div);
             });
@@ -1205,49 +1166,37 @@
 
         function startDuel() {
             const selectedDeckP1 = document.querySelector('input[name="player1-deck"]:checked');
-            const selectedDeckP2 = document.querySelector('input[name="player2-deck"]:checked');
 
-            if (!selectedDeckP1 || !selectedDeckP2) {
-                alert("Veuillez sélectionner un deck pour chaque joueur.");
+            if (!selectedDeckP1) {
+                alert("Veuillez sélectionner un deck.");
                 return;
-            }
-            if (selectedDeckP1.value === selectedDeckP2.value) {
-                if (!confirm("Les deux joueurs utilisent le même deck. Voulez-vous continuer ?")) {
-                    return;
-                }
             }
 
             const deckDataP1 = [...savedDecks[selectedDeckP1.value]]; // Clone pour ne pas modifier l'original
-            const deckDataP2 = [...savedDecks[selectedDeckP2.value]];
 
-            if (deckDataP1.length < MIN_DECK_SIZE || deckDataP2.length < MIN_DECK_SIZE) {
-                alert(`Les decks sélectionnés doivent contenir au moins ${MIN_DECK_SIZE} cartes.`);
+            if (deckDataP1.length < MIN_DECK_SIZE) {
+                alert(`Le deck sélectionné doit contenir au moins ${MIN_DECK_SIZE} cartes.`);
                 return;
             }
 
             player1.selectedDeckName = selectedDeckP1.value;
-            player2.selectedDeckName = selectedDeckP2.value;
-
             player1.deck = deckDataP1;
-            player2.deck = deckDataP2;
 
             shuffleArray(player1.deck);
-            shuffleArray(player2.deck);
 
-            // Piocher 5 cartes pour chaque joueur (ou le nombre de cartes de départ standard)
+            // Piocher 5 cartes
             for (let i = 0; i < 5; i++) {
                 if (player1.deck.length > 0) player1.hand.push(player1.deck.shift());
-                if (player2.deck.length > 0) player2.hand.push(player2.deck.shift());
             }
 
             renderGame(1);
-            renderGame(2);
             selectDeckModal.classList.remove('active');
-            alert(`Le duel commence ! ${player1.selectedDeckName} vs ${player2.selectedDeckName}`);
+            alert(`Le duel commence avec le deck : ${player1.selectedDeckName} !`);
         }
 
 
         function renderGame(playerNumber) {
+            // Puisqu'il n'y a qu'un joueur, playerNumber sera toujours 1
             updateLP(playerNumber, 0); // Juste pour rafraîchir l'affichage
             renderDeck(playerNumber);
             renderHand(playerNumber);
@@ -1295,13 +1244,13 @@
         function renderGraveyard(playerNumber) {
             const graveyardElement = graveyards[playerNumber];
             const graveyardCount = players[playerNumber].graveyard.length;
-            graveyardElement.querySelector('span').textContent = `Cimetière J${playerNumber} (${graveyardCount})`;
+            graveyardElement.querySelector('span').textContent = `Cimetière (${graveyardCount})`;
         }
 
         function renderDeck(playerNumber) {
             const deckElement = decks[playerNumber];
             const deckCount = players[playerNumber].deck.length;
-            deckElement.querySelector('span').textContent = `Deck J${playerNumber} (${deckCount})`;
+            deckElement.querySelector('span').textContent = `Deck (${deckCount})`;
         }
 
         function updateLP(playerNumber, value) {
@@ -1336,11 +1285,12 @@
                 resetSelectedCard();
                 console.log(`J${playerNumber} a pioché : ${drawnCard.id}`);
             } else {
-                alert(`Le deck du joueur ${playerNumber} est vide !`);
+                alert(`Votre deck est vide !`);
             }
         }
 
         function handleCardClick(cardElement, cardData, location, playerNumber, boardIndex = null) {
+            // Pas de déplacement inter-joueur, donc on ne vérifie que le même joueur
             if (isMovingCard && location === 'board' && playerNumber === selectedCard.player) {
                 if (selectedCard.element === cardElement) {
                     resetSelectedCard();
@@ -1400,7 +1350,7 @@
         function handleBoardSlotClick(e) {
             const slotDiv = e.currentTarget;
             const slotIndex = parseInt(slotDiv.dataset.slotIndex);
-            const playerNum = parseInt(slotDiv.dataset.player);
+            const playerNum = parseInt(slotDiv.dataset.player); // Sera toujours 1 maintenant
 
             if (!isMovingCard || !slotDiv.classList.contains('targetable')) {
                 return;
@@ -1427,7 +1377,7 @@
                     renderBoard(playerNum);
                     cardModal.classList.remove('active');
                     deckGraveyardMenu.classList.remove('active');
-                    console.log(`Carte ${cardToPlace.id} du J${playerNum} posée sur l'emplacement ${slotIndex}.`);
+                    console.log(`Carte ${cardToPlace.id} posée sur l'emplacement ${slotIndex}.`);
                 }
             } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
                 const cardToMove = targetPlayer.board[selectedCard.boardIndex];
@@ -1437,7 +1387,7 @@
                     renderBoard(playerNum);
                     cardModal.classList.remove('active');
                     deckGraveyardMenu.classList.remove('active');
-                    console.log(`Carte ${cardToMove.id} du J${playerNum} déplacée de ${selectedCard.boardIndex} à ${slotIndex}.`);
+                    console.log(`Carte ${cardToMove.id} déplacée de ${selectedCard.boardIndex} à ${slotIndex}.`);
                 }
             }
             resetSelectedCard();
@@ -1446,7 +1396,7 @@
         function moveToGraveyard() {
             if (!selectedCard.data) return;
 
-            const playerNum = selectedCard.player;
+            const playerNum = selectedCard.player; // Sera toujours 1
             const targetPlayer = players[playerNum];
 
             if (selectedCard.location === 'hand') {
@@ -1472,14 +1422,14 @@
             renderGraveyard(playerNum);
             cardModal.classList.remove('active');
             deckGraveyardMenu.classList.remove('active');
-            console.log(`Carte ${selectedCard.data.id} envoyée au cimetière du J${playerNum}.`);
+            console.log(`Carte ${selectedCard.data.id} envoyée au cimetière.`);
             resetSelectedCard();
         }
 
         function moveToDeck() {
             if (!selectedCard.data) return;
 
-            const playerNum = selectedCard.player;
+            const playerNum = selectedCard.player; // Sera toujours 1
             const targetPlayer = players[playerNum];
 
             if (selectedCard.location === 'hand') {
@@ -1506,7 +1456,7 @@
             renderDeck(playerNum);
             cardModal.classList.remove('active');
             deckGraveyardMenu.classList.remove('active');
-            console.log(`Carte ${selectedCard.data.id} renvoyée au deck du J${playerNum} et deck mélangé.`);
+            console.log(`Carte ${selectedCard.data.id} renvoyée au deck et deck mélangé.`);
             resetSelectedCard();
         }
 
@@ -1564,15 +1514,15 @@
                         renderDeck(selectedCard.player);
                         renderGraveyard(selectedCard.player);
                         deckGraveyardMenu.classList.remove('active');
-                        alert(`Carte ${cardToTake.id} ajoutée à la main du J${selectedCard.player}.`);
+                        alert(`Carte ${cardToTake.id} ajoutée à votre main.`);
                         resetSelectedCard();
                     }
                 }
             }
         }
 
-        function handleDeckClick(playerNumber) {
-            menuTitle.textContent = `Deck Joueur ${playerNumber}`;
+        function handleDeckClick(playerNumber) { // playerNumber sera toujours 1
+            menuTitle.textContent = `Votre Deck`;
             menuOptions.innerHTML = `
                 <button id="drawCardBtn">Piocher une carte</button>
                 <button id="searchDeckBtn">Chercher dans le deck</button>
@@ -1585,8 +1535,8 @@
             document.getElementById('searchDeckBtn').onclick = () => searchZone('deck', playerNumber);
         }
 
-        function handleGraveyardClick(playerNumber) {
-            menuTitle.textContent = `Cimetière Joueur ${playerNumber}`;
+        function handleGraveyardClick(playerNumber) { // playerNumber sera toujours 1
+            menuTitle.textContent = `Votre Cimetière`;
             menuOptions.innerHTML = `
                 <button id="retrieveCardBtn">Récupérer une carte</button>
                 <button id="viewGraveyardBtn">Voir le cimetière</button>
@@ -1603,11 +1553,11 @@
             let cardsInZone = [];
             if (zoneType === 'deck') {
                 cardsInZone = players[playerNumber].deck;
-                menuTitle.textContent = `Contenu du Deck J${playerNumber}`;
+                menuTitle.textContent = `Contenu de votre Deck`;
                 menuOptions.innerHTML = `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la mettre en main.</p>`;
             } else if (zoneType === 'graveyard') {
                 cardsInZone = players[playerNumber].graveyard;
-                menuTitle.textContent = `Contenu du Cimetière J${playerNumber}`;
+                menuTitle.textContent = `Contenu de votre Cimetière`;
                 menuOptions.innerHTML = canRetrieve ? `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la récupérer en main.</p>` : `<p style="color:#eee;font-size:0.9em;">(Cimetière vide)</p>`;
             }
 
@@ -1703,25 +1653,31 @@
 
             // Événements pour le Duel
             document.querySelectorAll('.lp-plus').forEach(button => {
-                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), 100));
+                // S'assure que le bouton est bien celui du joueur 1 (data-player="1")
+                if (parseInt(button.dataset.player) === 1) {
+                    button.addEventListener('click', (e) => updateLP(1, 100));
+                }
             });
             document.querySelectorAll('.lp-minus').forEach(button => {
-                button.addEventListener('click', (e) => updateLP(parseInt(e.target.dataset.player), -100));
+                // S'assure que le bouton est bien celui du joueur 1 (data-player="1")
+                if (parseInt(button.dataset.player) === 1) {
+                    button.addEventListener('click', (e) => updateLP(1, -100));
+                }
             });
 
+            // Gère les clics sur les zones de deck et cimetière du joueur 1
             decks['1'].addEventListener('click', () => handleDeckClick(1));
-            decks['2'].addEventListener('click', () => handleDeckClick(2));
-
             graveyards['1'].addEventListener('click', () => handleGraveyardClick(1));
-            graveyards['2'].addEventListener('click', () => handleGraveyardClick(2));
 
             toggleHandBtns.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const playerNumber = e.target.dataset.player;
-                    const hand = hands[playerNumber];
-                    hand.classList.toggle('hidden');
-                    e.target.textContent = hand.classList.contains('hidden') ? 'Afficher Ma Main' : 'Masquer Ma Main';
-                });
+                // Ne gère que le bouton du joueur 1
+                if (parseInt(button.dataset.player) === 1) {
+                    button.addEventListener('click', (e) => {
+                        const hand = hands[1]; // Toujours la main du joueur 1
+                        hand.classList.toggle('hidden');
+                        e.target.textContent = hand.classList.contains('hidden') ? 'Afficher Ma Main' : 'Masquer Ma Main';
+                    });
+                }
             });
 
             modalCloseBtn.addEventListener('click', () => {
@@ -1739,7 +1695,7 @@
 
             // Événements de sélection de deck pour le duel
             closeSelectDeckModal.addEventListener('click', () => selectDeckModal.classList.remove('active'));
-            startDuelWithSelectedDecksBtn.addEventListener('click', startDuel);
+            startDuelWithSelectedDeckBtn.addEventListener('click', startDuel);
 
         });
     </script>
