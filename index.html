@@ -754,6 +754,32 @@
             text-align: center;
             box-sizing: border-box;
         }
+        .card-preview {
+            position: relative; /* Nécessaire pour positionner le bouton */
+        }
+        .remove-card-btn {
+            position: absolute;
+            top: -8px; /* Ajustez pour qu'il soit bien en haut à droite */
+            right: -8px; /* Ajustez pour qu'il soit bien en haut à droite */
+            background-color: #e74c3c; /* Couleur rouge pour supprimer */
+            color: white;
+            border: none;
+            border-radius: 50%; /* Pour un bouton rond */
+            width: 20px;
+            height: 20px;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: background-color 0.2s, transform 0.1s;
+            z-index: 5; /* Assurez-vous qu'il est au-dessus de la carte */
+        }
+        .remove-card-btn:hover {
+            background-color: #c0392b;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -965,7 +991,7 @@
             return `images/${type}/${type}_${paddedNumber}.jpg`;
         }
 
-        function createCardElement(cardData, isFaceDown = false, isPreview = false) {
+function createCardElement(cardData, isFaceDown = false, isPreview = false, isRemovable = false) {
             const cardDiv = document.createElement('div');
             cardDiv.classList.add('card');
             if (isPreview) cardDiv.classList.add('card-preview');
@@ -984,6 +1010,25 @@
                 img.src = cardData.path;
                 img.alt = `Carte ${cardData.id}`;
                 cardDiv.appendChild(img);
+
+                // La partie suivante pour afficher l'ID de la carte a été commentée
+                // ou supprimée si vous avez suivi les instructions précédentes.
+                // Si vous souhaitez remettre l'ID, décommentez ou réécrivez :
+                // if (isPreview) {
+                //     const span = document.createElement('span');
+                //     span.textContent = cardData.id;
+                //     cardDiv.appendChild(span);
+                // }
+
+                // AJOUT POUR LE BOUTON DE SUPPRESSION
+                if (isRemovable) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.classList.add('remove-card-btn');
+                    removeBtn.textContent = '-';
+                    removeBtn.title = 'Retirer du deck';
+                    removeBtn.dataset.cardId = cardData.id; // Stocke l'ID pour la suppression
+                    cardDiv.appendChild(removeBtn);
+                }
             }
             return cardDiv;
         }
@@ -1081,13 +1126,14 @@
             renderCurrentEditingDeckDisplay();
         }
 
-        function renderCurrentEditingDeckDisplay() {
+function renderCurrentEditingDeckDisplay() {
             currentDeckCardsGrid.innerHTML = '';
             const cardCounts = { PE: 0, OB: 0, PI: 0 };
 
             currentEditingDeck.cards.forEach(card => {
                 cardCounts[card.type]++;
-                const cardDiv = createCardElement(card, false, true); // isPreview = true
+                // Passez isRemovable = true pour les cartes du deck en cours
+                const cardDiv = createCardElement(card, false, true, true);
                 currentDeckCardsGrid.appendChild(cardDiv);
             });
 
@@ -1096,14 +1142,21 @@
             currentDeckObCount.textContent = cardCounts.OB;
             currentDeckPiCount.textContent = cardCounts.PI;
 
-            // Mettre à jour l'état de l'input du nom du deck
             if (currentEditingDeck.name) {
                 currentEditingDeckNameInput.value = currentEditingDeck.name;
-                currentEditingDeckNameInput.disabled = true; // Disable if editing an existing deck
+                currentEditingDeckNameInput.disabled = true;
             } else {
                 currentEditingDeckNameInput.value = '';
-                currentEditingDeckNameInput.disabled = false; // Enable if creating a new deck
+                currentEditingDeckNameInput.disabled = false;
             }
+
+            // AJOUT : Attache les écouteurs d'événements aux nouveaux boutons de suppression
+            document.querySelectorAll('#currentDeckCardsGrid .remove-card-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const cardIdToRemove = e.target.dataset.cardId;
+                    removeCardFromCurrentDeck(cardIdToRemove);
+                });
+            });
         }
 
         function resetCurrentEditingDeck() {
@@ -1111,6 +1164,17 @@
             renderCurrentEditingDeckDisplay();
             currentEditingDeckNameInput.value = '';
             currentEditingDeckNameInput.disabled = false;
+        }
+        
+        function removeCardFromCurrentDeck(cardId) {
+            // Trouver l'index de la première occurrence de la carte avec cet ID
+            const indexToRemove = currentEditingDeck.cards.findIndex(card => card.id === cardId);
+
+            if (indexToRemove > -1) {
+                currentEditingDeck.cards.splice(indexToRemove, 1); // Retire une carte à cet index
+                renderCurrentEditingDeckDisplay(); // Rafraîchit l'affichage
+                console.log(`Carte ${cardId} retirée du deck en cours.`);
+            }
         }
 
         function openAddCardToDeckModal() {
