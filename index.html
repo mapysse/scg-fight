@@ -1982,12 +1982,12 @@
             // --- Événements Duel (inchangées) ---
             document.querySelectorAll('.lp-plus').forEach(button => {
                 if (parseInt(button.dataset.player) === 1) {
-                    button.addEventListener('click', (e) => updateLP(1, 100));
+                    button.addEventListener('click', (e) => updateLP(1, 1));
                 }
             });
             document.querySelectorAll('.lp-minus').forEach(button => {
                 if (parseInt(button.dataset.player) === 1) {
-                    button.addEventListener('click', (e) => updateLP(1, -100));
+                    button.addEventListener('click', (e) => updateLP(1, -1));
                 }
             });
 
