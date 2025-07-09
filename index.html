@@ -292,9 +292,21 @@
             display: block;
             pointer-events: none;
         }
-        
+        /* Nouvelle classe pour la rotation */
+        .card.rotated {
+            transform: rotate(90deg);
+            transform-origin: center center;
+            width: 120px; /* Ancien height */
+            height: 80px; /* Ancien width */
+        }
+        .card.rotated img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
 .board {
     display: grid;
+    /* Conservez ces propriétés pour les écrans plus grands, si nécessaire */
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: repeat(3, 1fr);
     gap: 5px;
@@ -311,6 +323,15 @@
     z-index: 10;
 }
 
+@media (max-width: 450px) {
+    .board {
+        /* Chaque colonne aura une taille minimale de 50px et maximale de 1 fraction */
+        grid-template-columns: repeat(5, minmax(50px, 1fr));
+        width: 98vw; /* Ou 95vw, pour être sûr */
+        gap: 2px; /* Réduisez encore le gap */
+        padding: 2px; /* Réduisez encore le padding */
+    }
+}
         .board-slot {
             width: 80px;
             height: 120px;
@@ -844,8 +865,8 @@
                 <button class="modal-close" id="modalCloseBtn">&times;</button>
                 <div class="modal-card-display" id="modalCardDisplay"></div>
                 <div class="modal-actions">
-                    <button id="modalMoveCardBtn">Déplacer sur le plateau</button>
-                    <button id="modalTakeToHandBtn">Prendre en main</button> <button id="modalGraveyardBtn">Cimetière</button>
+                    <button id="modalMoveCardBtn">Déplacer</button>
+                    <button id="modalRotateCardBtn">Pivoter (90°)</button> <button id="modalFaceDownRotateCardBtn">Face cachée & pivotée</button> <button id="modalGraveyardBtn">Cimetière</button>
                     <button id="modalDeckBtn">Deck</button>
                 </div>
             </div>
@@ -924,11 +945,11 @@
         let player1 = { deck: [], hand: [], graveyard: [], board: Array(15).fill(null), lp: 60, selectedDeckName: null }; // Board size changed to 15
         let players = { '1': player1 }; // L'objet players ne contient plus que le joueur 1
 
-        let selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null }; // Removed isFaceDown and isRotated
+        let selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null, isFaceDown: false, isRotated: false }; // Added isFaceDown and isRotated
         let isMovingCard = false;
         let cardToAddToCurrentDeck = null; // Carte sélectionnée dans addCardToDeckModal pour ajout
 
-        // --- Références DOM Générales pour le duel ---
+        // --- Références DOM Générales pour le duel (inchangées) ---
         const cardModal = document.getElementById('cardModal');
         const modalCardDisplay = document.getElementById('modalCardDisplay');
         const modalCloseBtn = document.getElementById('modalCloseBtn');
@@ -936,14 +957,15 @@
         const modalGraveyardBtn = document.getElementById('modalGraveyardBtn');
         const modalDeckBtn = document.getElementById('modalDeckBtn');
         // New buttons
-        const modalTakeToHandBtn = document.getElementById('modalTakeToHandBtn'); // NOUVEAU
+        const modalRotateCardBtn = document.getElementById('modalRotateCardBtn');
+        const modalFaceDownRotateCardBtn = document.getElementById('modalFaceDownRotateCardBtn');
+
 
         const deckGraveyardMenu = document.getElementById('deckGraveyardMenu');
         const menuCloseBtn = document.getElementById('menuCloseBtn');
         const menuTitle = document.getElementById('menuTitle');
         const menuOptions = document.getElementById('menuOptions');
         const cardSelectionGrid = document.getElementById('cardSelectionGrid');
-
 
         // --- Références DOM Duel (inchangées) ---
         const duelTab = document.getElementById('duel');
@@ -958,7 +980,6 @@
         const closeSelectDeckModal = document.getElementById('closeSelectDeckModal');
         const availableDecksList = document.getElementById('available-decks-list');
         const startDuelWithSelectedDeckBtn = document.getElementById('start-duel-with-selected-deck');
-
 
         // --- Références DOM Gestion des Decks (Nouvelles/modifiées) ---
         const deckManagementTab = document.getElementById('deck-management');
@@ -992,32 +1013,54 @@
 
 
         // --- Fonctions Utilitaires ---
+
         function getCardImagePath(type, number) {
             const paddedNumber = String(number).padStart(3, '0');
             return `images/${type}/${type}_${paddedNumber}.jpg`;
         }
 
-        function createCardElement(cardData, isPreview = false, isRemovable = false) { // Removed isFaceDown and isRotated
+        function createCardElement(cardData, isFaceDown = false, isPreview = false, isRemovable = false, isRotated = false) { // Added isRotated
             const cardDiv = document.createElement('div');
             cardDiv.classList.add('card');
             if (isPreview) cardDiv.classList.add('card-preview');
+            if (isRotated) cardDiv.classList.add('rotated'); // New class for rotation
+
             cardDiv.dataset.cardId = cardData.id;
             cardDiv.dataset.imagePath = cardData.path;
             cardDiv.dataset.cardType = cardData.type;
+            cardDiv.dataset.isFaceDown = isFaceDown; // New data attribute
+            cardDiv.dataset.isRotated = isRotated; // New data attribute
 
-            const img = document.createElement('img');
-            img.src = cardData.path;
-            img.alt = `Carte ${cardData.id}`;
-            cardDiv.appendChild(img);
 
-            // AJOUT POUR LE BOUTON DE SUPPRESSION
-            if (isRemovable) {
-                const removeBtn = document.createElement('button');
-                removeBtn.classList.add('remove-card-btn');
-                removeBtn.textContent = '-';
-                removeBtn.title = 'Retirer du deck';
-                removeBtn.dataset.cardId = cardData.id; // Stocke l'ID pour la suppression
-                cardDiv.appendChild(removeBtn);
+            if (isFaceDown) {
+                cardDiv.style.backgroundImage = `url(images/dos.jpg)`; // Image de dos de carte
+                cardDiv.style.backgroundSize = 'cover';
+                cardDiv.style.backgroundPosition = 'center';
+                cardDiv.textContent = ''; // Pas de texte si c'est le dos
+            } else {
+                const img = document.createElement('img');
+                img.src = cardData.path;
+                img.alt = `Carte ${cardData.id}`;
+                cardDiv.appendChild(img);
+
+                // La partie suivante pour afficher l'ID de la carte a été commentée
+                // ou supprimée si vous avez suivi les instructions précédentes.
+                // Si vous souhaitez remettre l'ID, décommentez ou réécrivez :
+                // if (isPreview) {
+                //     const span = document.createElement('span');
+                //     span.textContent = cardData.id;
+                //     cardDiv.appendChild(span);
+                // }
+
+                // AJOUT POUR LE BOUTON DE SUPPRESSION
+                if (isRemovable) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.classList.add('remove-card-btn');
+                    removeBtn.textContent = '-';
+                    removeBtn.title = 'Retirer du deck';
+                    removeBtn.dataset.cardId = cardData.id; // Stocke l'ID pour la suppression
+                    cardDiv.appendChild(removeBtn);
+                }
             }
             return cardDiv;
         }
@@ -1030,6 +1073,7 @@
         }
 
         // --- Gestion des Decks (Nouvelles fonctions) ---
+
         function generateAllAvailableCards() {
             let cards = [];
             for (let i = 1; i <= TOTAL_PE_CARDS; i++) {
@@ -1052,649 +1096,903 @@
             renderDeckList();
         }
 
-        function saveDeck(deckName, cards) {
-            savedDecks[deckName] = cards;
+        function saveDecks() {
             localStorage.setItem('savedDecks', JSON.stringify(savedDecks));
             renderDeckList();
-            alert(`Deck "${deckName}" sauvegardé !`);
-        }
-
-        function deleteDeck(deckName) {
-            if (confirm(`Êtes-vous sûr de vouloir supprimer le deck "${deckName}" ?`)) {
-                delete savedDecks[deckName];
-                localStorage.setItem('savedDecks', JSON.stringify(savedDecks));
-                renderDeckList();
-                // Si le deck supprimé était le deck en cours, vider l'éditeur
-                if (currentEditingDeck.name === deckName) {
-                    currentEditingDeck = { name: '', cards: [] };
-                    updateCurrentDeckDisplay();
-                    currentEditingDeckNameInput.value = '';
-                    currentEditingDeckNameInput.disabled = true;
-                }
-                alert(`Deck "${deckName}" supprimé.`);
-            }
         }
 
         function renderDeckList() {
             deckListDiv.innerHTML = '';
             if (Object.keys(savedDecks).length === 0) {
-                deckListDiv.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Aucun deck sauvegardé pour le moment.</p>';
+                deckListDiv.innerHTML = '<p style="text-align: center;">Aucun deck sauvegardé pour le moment.</p>';
                 return;
             }
-            for (const name in savedDecks) {
+
+            for (const deckName in savedDecks) {
+                const deckCards = savedDecks[deckName];
                 const deckItem = document.createElement('div');
                 deckItem.classList.add('deck-item');
-                const deckNameSpan = document.createElement('span');
-                deckNameSpan.classList.add('deck-name-display');
-                deckNameSpan.textContent = `${name} (${savedDecks[name].length} cartes)`;
-                deckItem.appendChild(deckNameSpan);
-
-                const actionsDiv = document.createElement('div');
-
-                const editBtn = document.createElement('button');
-                editBtn.textContent = 'Éditer';
-                editBtn.addEventListener('click', () => editDeck(name));
-                actionsDiv.appendChild(editBtn);
-
-                const viewBtn = document.createElement('button');
-                viewBtn.textContent = 'Voir';
-                viewBtn.addEventListener('click', () => viewDeck(name));
-                actionsDiv.appendChild(viewBtn);
-
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Supprimer';
-                deleteBtn.classList.add('delete-btn');
-                deleteBtn.addEventListener('click', () => deleteDeck(name));
-                actionsDiv.appendChild(deleteBtn);
-
-                deckItem.appendChild(actionsDiv);
+                deckItem.innerHTML = `
+                    <span class="deck-name-display">${deckName} (${deckCards.length} cartes)</span>
+                    <div>
+                        <button data-deck-name="${deckName}" class="edit-deck-btn">Modifier</button>
+                        <button data-deck-name="${deckName}" class="view-deck-btn">Voir</button>
+                        <button data-deck-name="${deckName}" class="delete-deck-btn delete-btn">Supprimer</button>
+                    </div>
+                `;
                 deckListDiv.appendChild(deckItem);
+            }
+
+            document.querySelectorAll('.edit-deck-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const deckName = e.target.dataset.deckName;
+                    editDeck(deckName, savedDecks[deckName]);
+                });
+            });
+
+            document.querySelectorAll('.view-deck-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const deckName = e.target.dataset.deckName;
+                    viewDeck(deckName, savedDecks[deckName]);
+                });
+            });
+
+            document.querySelectorAll('.delete-deck-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const deckName = e.target.dataset.deckName;
+                    if (confirm(`Êtes-vous sûr de vouloir supprimer le deck "${deckName}" ?`)) {
+                        delete savedDecks[deckName];
+                        saveDecks();
+                        if (currentEditingDeck.name === deckName) { // If deleting the currently edited deck
+                            resetCurrentEditingDeck();
+                        }
+                    }
+                });
+            });
+        }
+
+        function editDeck(deckName, deckCards) {
+            currentEditingDeck.name = deckName;
+            currentEditingDeck.cards = [...deckCards]; // Clone the array
+            currentEditingDeckNameInput.value = deckName;
+            renderCurrentEditingDeckDisplay();
+        }
+
+        function renderCurrentEditingDeckDisplay() {
+            currentDeckCardsGrid.innerHTML = '';
+            const cardCounts = { PE: 0, OB: 0, PI: 0 };
+
+            currentEditingDeck.cards.forEach(card => {
+                cardCounts[card.type]++;
+                // Passez isRemovable = true pour les cartes du deck en cours
+                const cardDiv = createCardElement(card, false, true, true);
+                currentDeckCardsGrid.appendChild(cardDiv);
+            });
+
+            currentDeckTotalCards.textContent = currentEditingDeck.cards.length;
+            currentDeckPeCount.textContent = cardCounts.PE;
+            currentDeckObCount.textContent = cardCounts.OB;
+            currentDeckPiCount.textContent = cardCounts.PI;
+
+            if (currentEditingDeck.name) {
+                currentEditingDeckNameInput.value = currentEditingDeck.name;
+                currentEditingDeckNameInput.disabled = true;
+            } else {
+                currentEditingDeckNameInput.value = '';
+                currentEditingDeckNameInput.disabled = false;
+            }
+
+            // AJOUT : Attache les écouteurs d'événements aux nouveaux boutons de suppression
+            document.querySelectorAll('#currentDeckCardsGrid .remove-card-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const cardIdToRemove = e.target.dataset.cardId;
+                    removeCardFromCurrentDeck(cardIdToRemove);
+                });
+            });
+        }
+
+        function resetCurrentEditingDeck() {
+            currentEditingDeck = { name: '', cards: [] };
+            renderCurrentEditingDeckDisplay();
+            currentEditingDeckNameInput.value = '';
+            currentEditingDeckNameInput.disabled = false;
+        }
+        
+        function removeCardFromCurrentDeck(cardId) {
+            // Trouver l'index de la première occurrence de la carte avec cet ID
+            const indexToRemove = currentEditingDeck.cards.findIndex(card => card.id === cardId);
+
+            if (indexToRemove > -1) {
+                currentEditingDeck.cards.splice(indexToRemove, 1); // Retire une carte à cet index
+                renderCurrentEditingDeckDisplay(); // Rafraîchit l'affichage
+                console.log(`Carte ${cardId} retirée du deck en cours.`);
             }
         }
 
-        function editDeck(deckName) {
-            currentEditingDeck.name = deckName;
-            currentEditingDeck.cards = [...savedDecks[deckName]]; // Copie pour éviter la modification directe
-            currentEditingDeckNameInput.value = deckName;
-            currentEditingDeckNameInput.disabled = false;
-            updateCurrentDeckDisplay();
+        function openAddCardToDeckModal() {
+            addCardModalGrid.innerHTML = '';
+            allAvailableCards.forEach(card => {
+                const cardDiv = createCardElement(card, false, true); // isPreview = true
+                cardDiv.addEventListener('click', () => showCardDetailForAdd(card));
+                addCardModalGrid.appendChild(cardDiv);
+            });
+            addCardToDeckModal.classList.add('active');
         }
 
-        function viewDeck(deckName) {
-            const cardsToDisplay = savedDecks[deckName];
-            viewDeckModalTitle.textContent = `Cartes du Deck : ${deckName} (${cardsToDisplay.length} cartes)`;
+        function showCardDetailForAdd(cardData) {
+            cardToAddToCurrentDeck = cardData; // Stocke la carte à ajouter
+            detailCardDisplay.style.backgroundImage = `url(${cardData.path})`;
+            addCardToDeckModal.classList.remove('active'); // Ferme le modal de sélection
+            cardDetailModal.classList.add('active'); // Ouvre le modal de détail
+        }
+
+        function addSelectedCardToCurrentDeck() {
+            if (!cardToAddToCurrentDeck) return;
+
+            const currentPeCount = currentEditingDeck.cards.filter(c => c.type === 'PE').length;
+            const currentObCount = currentEditingDeck.cards.filter(c => c.type === 'OB').length;
+            const currentPiCount = currentEditingDeck.cards.filter(c => c.type === 'PI').length;
+
+            if (cardToAddToCurrentDeck.type === 'PE' && currentPeCount >= MAX_PE_CARDS) {
+                alert(`Vous avez atteint la limite de ${MAX_PE_CARDS} cartes de type PE.`);
+                return;
+            }
+            if (cardToAddToCurrentDeck.type === 'OB' && currentObCount >= MAX_OB_CARDS) {
+                alert(`Vous avez atteint la limite de ${MAX_OB_CARDS} cartes de type OB.`);
+                return;
+            }
+            if (cardToAddToCurrentDeck.type === 'PI' && currentPiCount >= MAX_PI_CARDS) {
+                alert(`Vous avez atteint la limite de ${MAX_PI_CARDS} cartes de type PI.`);
+                return;
+            }
+
+            currentEditingDeck.cards.push(cardToAddToCurrentDeck);
+            renderCurrentEditingDeckDisplay();
+            cardDetailModal.classList.remove('active');
+            cardToAddToCurrentDeck = null; // Réinitialise la carte sélectionnée
+
+            // Ré-ouvre le modal de sélection de cartes pour continuer à ajouter
+            openAddCardToDeckModal();
+        }
+
+        function cancelAddCard() {
+            cardDetailModal.classList.remove('active');
+            cardToAddToCurrentDeck = null; // Réinitialise
+            addCardToDeckModal.classList.add('active'); // Retourne au modal précédent
+        }
+
+        function saveCurrentDeck() {
+            let deckName = currentEditingDeckNameInput.value.trim();
+            if (!deckName) {
+                alert("Veuillez donner un nom à votre deck.");
+                return;
+            }
+
+            // Si c'est un nouveau deck, et que le nom existe déjà
+            if (!currentEditingDeck.name && savedDecks[deckName]) {
+                 if (!confirm(`Un deck nommé "${deckName}" existe déjà. Voulez-vous le remplacer ?`)) {
+                    return;
+                 }
+            }
+
+            const currentPeCount = currentEditingDeck.cards.filter(c => c.type === 'PE').length;
+            const currentObCount = currentEditingDeck.cards.filter(c => c.type === 'OB').length;
+            const currentPiCount = currentEditingDeck.cards.filter(c => c.type === 'PI').length;
+
+            if (currentPeCount !== MAX_PE_CARDS) {
+                alert(`Le deck doit contenir exactement ${MAX_PE_CARDS} cartes PE. Actuellement: ${currentPeCount}.`);
+                return;
+            }
+            if (currentObCount !== MAX_OB_CARDS) {
+                alert(`Le deck doit contenir exactement ${MAX_OB_CARDS} cartes OB. Actuellement: ${currentObCount}.`);
+                return;
+            }
+            if (currentPiCount !== MAX_PI_CARDS) {
+                alert(`Le deck doit contenir exactement ${MAX_PI_CARDS} cartes PI. Actuellement: ${currentPiCount}.`);
+                return;
+            }
+
+            const totalCards = currentEditingDeck.cards.length;
+            if (totalCards !== (MAX_PE_CARDS + MAX_OB_CARDS + MAX_PI_CARDS)) {
+                alert(`Erreur de calcul: Le total des cartes (${totalCards}) ne correspond pas à la somme des limites (20 PE + 15 OB + 15 PI = ${MAX_PE_CARDS + MAX_OB_CARDS + MAX_PI_CARDS}).`);
+                return;
+            }
+            if (totalCards < MIN_DECK_SIZE) { // Garder la contrainte si vous souhaitez un minimum au-delà des types
+                alert(`Un deck doit contenir au moins ${MIN_DECK_SIZE} cartes. Votre deck en a ${totalCards}.`);
+                return;
+            }
+
+
+            savedDecks[deckName] = [...currentEditingDeck.cards];
+            saveDecks();
+            alert(`Deck "${deckName}" sauvegardé avec succès !`);
+            resetCurrentEditingDeck();
+        }
+
+        function viewDeck(deckName, deckCards) {
+            viewDeckModalTitle.textContent = `Cartes du Deck: ${deckName}`;
             viewDeckCardsGrid.innerHTML = '';
-            cardsToDisplay.forEach(cardData => {
-                const cardElement = createCardElement(cardData, true); // isPreview = true
-                viewDeckCardsGrid.appendChild(cardElement);
+            deckCards.forEach(card => {
+                const cardDiv = createCardElement(card, false, true);
+                viewDeckCardsGrid.appendChild(cardDiv);
             });
             viewDeckModal.classList.add('active');
         }
 
 
-        function updateCurrentDeckDisplay() {
-            currentDeckCardsGrid.innerHTML = '';
-            let peCount = 0;
-            let obCount = 0;
-            let piCount = 0;
+        // --- Fonctions Duel (adaptées pour un seul joueur - inchangées) ---
 
-            currentEditingDeck.cards.forEach(cardData => {
-                const cardElement = createCardElement(cardData, true, true); // isPreview, isRemovable
-                currentDeckCardsGrid.appendChild(cardElement);
+        function initializeDuel() {
+            lpCounters['1'].textContent = '60';
+            player1.lp = 60;
 
-                // Incrémenter les compteurs par type
-                if (cardData.type === 'PE') peCount++;
-                else if (cardData.type === 'OB') obCount++;
-                else if (cardData.type === 'PI') piCount++;
+            player1.deck = [];
+            player1.hand = [];
+            player1.graveyard = [];
+            player1.board = Array(15).fill(null); // Ensure board is re-initialized with 15 slots
+
+            renderAvailableDecksForSelection();
+            selectDeckModal.classList.add('active');
+        }
+
+        function renderAvailableDecksForSelection() {
+            availableDecksList.innerHTML = '';
+            const deckNames = Object.keys(savedDecks);
+            if (deckNames.length === 0) {
+                availableDecksList.innerHTML = '<p>Aucun deck sauvegardé. Créez un deck dans l\'onglet "Gestion des Decks" pour commencer un duel.</p>';
+                startDuelWithSelectedDeckBtn.disabled = true;
+                return;
+            }
+            startDuelWithSelectedDeckBtn.disabled = false;
+
+            deckNames.forEach(deckName => {
+                const deckSize = savedDecks[deckName].length;
+                // Vérifier les limites du deck avant de le proposer pour le duel
+                const deckCards = savedDecks[deckName];
+                const peCount = deckCards.filter(c => c.type === 'PE').length;
+                const obCount = deckCards.filter(c => c.type === 'OB').length;
+                const piCount = deckCards.filter(c => c.type === 'PI').length;
+
+                let isValidForDuel = true;
+                let validationMessage = '';
+
+                if (peCount !== MAX_PE_CARDS) {
+                    isValidForDuel = false;
+                    validationMessage += `PE: ${peCount}/${MAX_PE_CARDS}. `;
+                }
+                if (obCount !== MAX_OB_CARDS) {
+                    isValidForDuel = false;
+                    validationMessage += `OB: ${obCount}/${MAX_OB_CARDS}. `;
+                }
+                if (piCount !== MAX_PI_CARDS) {
+                    isValidForDuel = false;
+                    validationMessage += `PI: ${piCount}/${MAX_PI_CARDS}. `;
+                }
+                if (deckSize !== (MAX_PE_CARDS + MAX_OB_CARDS + MAX_PI_CARDS)) {
+                    isValidForDuel = false;
+                    validationMessage += `Total: ${deckSize}/${(MAX_PE_CARDS + MAX_OB_CARDS + MAX_PI_CARDS)}. `;
+                }
+
+                const div = document.createElement('div');
+                div.classList.add('deck-selection-item');
+                div.innerHTML = `
+                    <input type="radio" name="player1-deck" value="${deckName}" id="p1-${deckName}" ${isValidForDuel ? '' : 'disabled'}>
+                    <label for="p1-${deckName}">${deckName} (${deckSize} cartes) ${isValidForDuel ? '' : `<span style="color:red;font-size:0.8em;">(Invalide: ${validationMessage.trim()})</span>`}</label>
+                `;
+                availableDecksList.appendChild(div);
             });
-
-            currentDeckTotalCards.textContent = currentEditingDeck.cards.length;
-            currentDeckPeCount.textContent = `${peCount} / ${MAX_PE_CARDS}`;
-            currentDeckObCount.textContent = `${obCount} / ${MAX_OB_CARDS}`;
-            currentDeckPiCount.textContent = `${piCount} / ${MAX_PI_CARDS}`;
-
-            // Mettre à jour la couleur des compteurs si les limites sont dépassées
-            currentDeckPeCount.style.color = peCount > MAX_PE_CARDS ? 'red' : '';
-            currentDeckObCount.style.color = obCount > MAX_OB_CARDS ? 'red' : '';
-            currentDeckPiCount.style.color = piCount > MAX_PI_CARDS ? 'red' : '';
         }
 
-        function showAddCardModal() {
-            addCardModalGrid.innerHTML = '';
-            allAvailableCards.forEach(cardData => {
-                const cardElement = createCardElement(cardData, true); // isPreview = true
-                cardElement.addEventListener('click', () => showCardDetailModal(cardData));
-                addCardModalGrid.appendChild(cardElement);
-            });
-            addCardToDeckModal.classList.add('active');
-        }
+        function startDuel() {
+            const selectedDeckP1 = document.querySelector('input[name="player1-deck"]:checked');
 
-        function showCardDetailModal(cardData) {
-            cardToAddToCurrentDeck = cardData; // Stocke la carte pour l'ajout
-            detailCardDisplay.style.backgroundImage = `url(${cardData.path})`;
-            detailCardDisplay.style.backgroundSize = 'cover';
-            detailCardDisplay.style.backgroundPosition = 'center';
-            cardDetailModal.classList.add('active');
-        }
-
-        function addCardToCurrentDeck() {
-            if (cardToAddToCurrentDeck) {
-                // Vérifier si le deck est en mode édition (nom non vide)
-                if (!currentEditingDeck.name) {
-                    alert("Veuillez d'abord nommer ou sélectionner un deck à éditer.");
-                    return;
-                }
-
-                // Vérifier les limites de types de cartes
-                const currentPeCount = currentEditingDeck.cards.filter(c => c.type === 'PE').length;
-                const currentObCount = currentEditingDeck.cards.filter(c => c.type === 'OB').length;
-                const currentPiCount = currentEditingDeck.cards.filter(c => c.type === 'PI').length;
-
-                if (cardToAddToCurrentDeck.type === 'PE' && currentPeCount >= MAX_PE_CARDS) {
-                    alert(`Vous ne pouvez pas avoir plus de ${MAX_PE_CARDS} cartes PE dans votre deck.`);
-                    return;
-                }
-                if (cardToAddToCurrentDeck.type === 'OB' && currentObCount >= MAX_OB_CARDS) {
-                    alert(`Vous ne pouvez pas avoir plus de ${MAX_OB_CARDS} cartes OB dans votre deck.`);
-                    return;
-                }
-                if (cardToAddToCurrentDeck.type === 'PI' && currentPiCount >= MAX_PI_CARDS) {
-                    alert(`Vous ne pouvez pas avoir plus de ${MAX_PI_CARDS} cartes PI dans votre deck.`);
-                    return;
-                }
-                
-                // Ajouter la carte au deck en cours
-                currentEditingDeck.cards.push(cardToAddToCurrentDeck);
-                updateCurrentDeckDisplay(); // Mettre à jour l'affichage
-                cancelAddCard(); // Fermer les modales après l'ajout
-            }
-        }
-
-        function cancelAddCard() {
-            cardToAddToCurrentDeck = null;
-            cardDetailModal.classList.remove('active');
-            addCardToDeckModal.classList.remove('active');
-        }
-
-        function saveCurrentDeck() {
-            const deckName = currentEditingDeckNameInput.value.trim();
-            if (!deckName) {
-                alert("Veuillez donner un nom à votre deck.");
-                return;
-            }
-            if (currentEditingDeck.cards.length < MIN_DECK_SIZE) {
-                alert(`Votre deck doit contenir au moins ${MIN_DECK_SIZE} cartes.`);
+            if (!selectedDeckP1) {
+                alert("Veuillez sélectionner un deck.");
                 return;
             }
 
-            // Vérifier les limites finales de types de cartes avant de sauvegarder
-            const currentPeCount = currentEditingDeck.cards.filter(c => c.type === 'PE').length;
-            const currentObCount = currentEditingDeck.cards.filter(c => c.type === 'OB').length;
-            const currentPiCount = currentEditingDeck.cards.filter(c => c.type === 'PI').length;
+            const deckDataP1 = [...savedDecks[selectedDeckP1.value]];
 
-            if (currentPeCount > MAX_PE_CARDS || currentObCount > MAX_OB_CARDS || currentPiCount > MAX_PI_CARDS) {
-                alert("Veuillez respecter les limites de types de cartes avant de sauvegarder.");
+            // Double vérification des limites au démarrage du duel, au cas où
+            const peCount = deckDataP1.filter(c => c.type === 'PE').length;
+            const obCount = deckDataP1.filter(c => c.type === 'OB').length;
+            const piCount = deckDataP1.filter(c => c.type === 'PI').length;
+            const totalCards = deckDataP1.length;
+
+            let isValid = true;
+            let errorMessage = "Le deck sélectionné ne respecte pas les règles de composition :\n";
+            if (peCount !== MAX_PE_CARDS) {
+                isValid = false;
+                errorMessage += `- Doit contenir ${MAX_PE_CARDS} cartes PE (actuel: ${peCount}).\n`;
+            }
+            if (obCount !== MAX_OB_CARDS) {
+                isValid = false;
+                errorMessage += `- Doit contenir ${MAX_OB_CARDS} cartes OB (actuel: ${obCount}).\n`;
+            }
+            if (piCount !== MAX_PI_CARDS) {
+                isValid = false;
+                errorMessage += `- Doit contenir ${MAX_PI_CARDS} cartes PI (actuel: ${piCount}).\n`;
+            }
+             if (totalCards !== (MAX_PE_CARDS + MAX_OB_CARDS + MAX_PI_CARDS)) {
+                isValid = false;
+                errorMessage += `- Doit contenir un total de ${MAX_PE_CARDS + MAX_OB_CARDS + MAX_PI_CARDS} cartes (actuel: ${totalCards}).\n`;
+            }
+
+            if (!isValid) {
+                alert(errorMessage + "Veuillez corriger le deck dans l'onglet 'Gestion des Decks'.");
                 return;
             }
 
-            saveDeck(deckName, currentEditingDeck.cards);
-            currentEditingDeck = { name: '', cards: [] }; // Réinitialiser
-            currentEditingDeckNameInput.value = '';
-            currentEditingDeckNameInput.disabled = true;
-            updateCurrentDeckDisplay();
-        }
+            player1.selectedDeckName = selectedDeckP1.value;
+            player1.deck = deckDataP1;
 
-        function cancelCurrentDeckEditing() {
-            if (confirm("Annuler les modifications ? Le deck actuel sera vidé si non sauvegardé.")) {
-                currentEditingDeck = { name: '', cards: [] };
-                currentEditingDeckNameInput.value = '';
-                currentEditingDeckNameInput.disabled = true;
-                updateCurrentDeckDisplay();
+            shuffleArray(player1.deck);
+
+            for (let i = 0; i < 5; i++) {
+                if (player1.deck.length > 0) player1.hand.push(player1.deck.shift());
             }
+
+            renderGame(1);
+            selectDeckModal.classList.remove('active');
+            alert(`Le duel commence avec le deck : ${player1.selectedDeckName} !`);
         }
 
-        function clearCurrentDeck() {
-            if (confirm("Voulez-vous vraiment vider le deck en cours ? Cette action est irréversible pour les modifications non sauvegardées.")) {
-                currentEditingDeck.cards = [];
-                updateCurrentDeckDisplay();
-            }
+
+        function renderGame(playerNumber) {
+            updateLP(playerNumber, 0);
+            renderDeck(playerNumber);
+            renderHand(playerNumber);
+            renderBoard(playerNumber);
+            renderGraveyard(playerNumber);
         }
 
-        // Fonction pour gérer la suppression d'une carte du deck en cours
-        function removeCardFromCurrentDeck(cardId) {
-            const initialLength = currentEditingDeck.cards.length;
-            currentEditingDeck.cards = currentEditingDeck.cards.filter(card => card.id !== cardId);
-            if (currentEditingDeck.cards.length < initialLength) {
-                updateCurrentDeckDisplay();
-            }
-        }
-
-        // Ajoutez l'écouteur d'événements pour les boutons de suppression de carte
-        currentDeckCardsGrid.addEventListener('click', (event) => {
-            if (event.target.classList.contains('remove-card-btn')) {
-                const cardIdToRemove = event.target.dataset.cardId;
-                removeCardFromCurrentDeck(cardIdToRemove);
-            }
-        });
-
-
-        // --- Fonctions Duel (modifiées/ajoutées) ---
-        function resetSelectedCard() {
-            if (selectedCard.element) {
-                selectedCard.element.classList.remove('selected-for-move');
-            }
-            selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null }; // Removed isFaceDown and isRotated
-            isMovingCard = false;
-        }
-
-        function updateDeckCount(playerNum) {
-            decks[playerNum].innerHTML = `<span>Deck</span>${players[playerNum].deck.length}`;
-        }
-
-        function updateGraveyardCount(playerNum) {
-            graveyards[playerNum].innerHTML = `<span>Cimetière</span>${players[playerNum].graveyard.length}`;
-        }
-
-        function drawCard(playerNum) {
-            const player = players[playerNum];
-            if (player.deck.length > 0) {
-                const card = player.deck.pop();
-                player.hand.push(card);
-                displayHand(playerNum);
-                updateDeckCount(playerNum);
-            } else {
-                alert("Le deck est vide !");
-            }
-        }
-
-        function displayHand(playerNum) {
-            const handElement = hands[playerNum];
+        function renderHand(playerNumber) {
+            const handElement = hands[playerNumber];
             handElement.innerHTML = '';
-            players[playerNum].hand.forEach(cardData => {
-                const cardElement = createCardElement(cardData);
-                cardElement.dataset.location = 'hand';
-                cardElement.dataset.player = playerNum;
-                cardElement.addEventListener('click', () => openCardModal(cardElement, cardData, 'hand', playerNum));
-                handElement.appendChild(cardElement);
+            const hand = players[playerNumber].hand;
+
+            hand.forEach(card => {
+                const cardDiv = createCardElement(card);
+                handElement.appendChild(cardDiv);
+                cardDiv.addEventListener('click', () => handleCardClick(cardDiv, card, 'hand', playerNumber));
             });
         }
 
-        function displayBoard(playerNum) {
-            const boardElement = boards[playerNum];
+        function renderBoard(playerNumber) {
+            const boardElement = boards[playerNumber];
             boardElement.innerHTML = '';
-            for (let i = 0; i < players[playerNum].board.length; i++) {
-                const cardData = players[playerNum].board[i];
-                if (cardData) {
-                    const cardElement = createCardElement(cardData.data); // Removed isFaceDown and isRotated
-                    cardElement.dataset.location = 'board';
-                    cardElement.dataset.player = playerNum;
-                    cardElement.dataset.boardIndex = i; // Store board index
-                    cardElement.addEventListener('click', () => openCardModal(cardElement, cardData.data, 'board', playerNum, i)); // Removed isFaceDown and isRotated
-                    boardElement.appendChild(cardElement);
+            const board = players[playerNumber].board;
+
+            for (let i = 0; i < 15; i++) {
+                const slotDiv = document.createElement('div');
+                slotDiv.classList.add('board-slot');
+                slotDiv.dataset.slotIndex = i;
+                slotDiv.dataset.player = playerNumber;
+
+                if (board[i]) {
+                    // Créer la carte avec ses états isFaceDown et isRotated
+                    const cardDiv = createCardElement(board[i].card, board[i].isFaceDown, false, false, board[i].isRotated);
+                    slotDiv.appendChild(cardDiv);
+                    // Passer l'objet complet au handleCardClick
+                    cardDiv.addEventListener('click', () => handleCardClick(cardDiv, board[i].card, 'board', playerNumber, i, board[i].isFaceDown, board[i].isRotated));
                 } else {
-                    const emptySlot = document.createElement('div');
-                    emptySlot.classList.add('board-slot');
-                    emptySlot.textContent = `Case ${i + 1}`;
-                    emptySlot.dataset.player = playerNum;
-                    emptySlot.dataset.boardIndex = i;
-                    emptySlot.addEventListener('click', (e) => {
-                        if (isMovingCard && selectedCard.menuOrigin === 'board' && selectedCard.location === 'hand') {
-                            moveCardToBoard(selectedCard.data, parseInt(e.target.dataset.player), parseInt(e.target.dataset.boardIndex));
-                        } else if (isMovingCard && selectedCard.location === 'board') {
-                            // If moving from board to board, ensure the target is empty
-                            if (players[selectedCard.player].board[parseInt(e.target.dataset.boardIndex)] === null) {
-                                moveCardToBoard(selectedCard.data, parseInt(e.target.dataset.player), parseInt(e.target.dataset.boardIndex));
-                            } else {
-                                alert("Cette case est déjà occupée.");
-                                resetSelectedCard();
-                                cardModal.classList.remove('active');
-                            }
-                        }
-                    });
-                    boardElement.appendChild(emptySlot);
+                    const span = document.createElement('span');
+                    span.textContent = `Emplacement ${i + 1}`;
+                    slotDiv.appendChild(span);
                 }
+                boardElement.appendChild(slotDiv);
+                slotDiv.addEventListener('click', handleBoardSlotClick);
             }
         }
 
-        function openCardModal(element, cardData, location, player, boardIndex = -1) { // Removed isFaceDown and isRotated
-            selectedCard = { element, data: cardData, location, player, boardIndex, menuOrigin: location }; // Removed isFaceDown and isRotated
-            modalCardDisplay.style.backgroundImage = `url(${cardData.path})`;
-            modalCardDisplay.style.backgroundSize = 'cover';
-            modalCardDisplay.style.backgroundPosition = 'center';
-            cardModal.classList.add('active');
-
-            // Hide/show buttons based on card location
-            if (location === 'hand') {
-                modalMoveCardBtn.style.display = 'block'; // Move to board
-                modalGraveyardBtn.style.display = 'block';
-                modalDeckBtn.style.display = 'block';
-                modalTakeToHandBtn.style.display = 'none'; // Already in hand
-            } else if (location === 'board') {
-                modalMoveCardBtn.style.display = 'block'; // Move on board or back to hand
-                modalGraveyardBtn.style.display = 'block';
-                modalDeckBtn.style.display = 'block';
-                modalTakeToHandBtn.style.display = 'block'; // Can take from board to hand
-            } else if (location === 'graveyard' || location === 'deck') {
-                modalMoveCardBtn.style.display = 'block'; // Move to board
-                modalGraveyardBtn.style.display = (location === 'graveyard') ? 'none' : 'block'; // Can't move to graveyard if already there
-                modalDeckBtn.style.display = (location === 'deck') ? 'none' : 'block'; // Can't move to deck if already there
-                modalTakeToHandBtn.style.display = 'block'; // Can take from graveyard/deck to hand
-            }
+        function renderGraveyard(playerNumber) {
+            const graveyardElement = graveyards[playerNumber];
+            const graveyardCount = players[playerNumber].graveyard.length;
+            graveyardElement.querySelector('span').textContent = `Cimetière (${graveyardCount})`;
         }
 
-
-        function removeCardFromLocation(cardId, location, playerNum, boardIndex = -1) {
-            const player = players[playerNum];
-            let removed = false;
-
-            if (location === 'hand') {
-                const index = player.hand.findIndex(card => card.id === cardId);
-                if (index !== -1) {
-                    player.hand.splice(index, 1);
-                    removed = true;
-                }
-            } else if (location === 'board') {
-                if (boardIndex !== -1 && player.board[boardIndex] && player.board[boardIndex].data.id === cardId) {
-                    player.board[boardIndex] = null;
-                    removed = true;
-                }
-            } else if (location === 'graveyard') {
-                const index = player.graveyard.findIndex(card => card.id === cardId);
-                if (index !== -1) {
-                    player.graveyard.splice(index, 1);
-                    removed = true;
-                }
-            } else if (location === 'deck') {
-                const index = player.deck.findIndex(card => card.id === cardId);
-                if (index !== -1) {
-                    player.deck.splice(index, 1);
-                    removed = true;
-                }
-            }
-
-            if (removed) {
-                displayHand(playerNum);
-                displayBoard(playerNum);
-                updateDeckCount(playerNum);
-                updateGraveyardCount(playerNum);
-            }
-            return removed;
+        function renderDeck(playerNumber) {
+            const deckElement = decks[playerNumber];
+            const deckCount = players[playerNumber].deck.length;
+            deckElement.querySelector('span').textContent = `Deck (${deckCount})`;
         }
 
-        function prepareMoveOnBoard() {
-            if (!selectedCard.data) return;
-
-            // Only allow movement to board for cards from hand, deck, or graveyard
-            if (selectedCard.location !== 'hand' && selectedCard.location !== 'board' && selectedCard.location !== 'deck' && selectedCard.location !== 'graveyard') {
-                alert("Vous ne pouvez déplacer sur le plateau que des cartes de votre main, deck, cimetière ou déjà sur le plateau.");
-                return;
-            }
-
-            isMovingCard = true;
-            cardModal.classList.remove('active'); // Close current modal
-
-            // Highlight targetable slots on the board
-            const boardSlots = boards[selectedCard.player].querySelectorAll('.board-slot');
-            boardSlots.forEach(slot => {
-                slot.classList.add('targetable');
-            });
-
-            // If moving from board to board, the origin slot should also be targetable
-            if (selectedCard.location === 'board' && selectedCard.element) {
-                selectedCard.element.classList.add('targetable');
-            }
-
-            alert("Cliquez sur un emplacement du plateau pour déplacer la carte.");
+        function updateLP(playerNumber, value) {
+            const lpElement = lpCounters[playerNumber];
+            let currentLP = players[playerNumber].lp;
+            currentLP += value;
+            players[playerNumber].lp = Math.max(0, currentLP);
+            lpElement.textContent = players[playerNumber].lp;
         }
 
-
-        function moveCardToBoard(cardData, playerNum, boardIndex) {
-            const player = players[playerNum];
-
-            // If moving from board to another board slot, clear the old slot first
-            if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
-                player.board[selectedCard.boardIndex] = null;
-            } else {
-                // If moving from hand, deck, or graveyard, remove from original location
-                removeCardFromLocation(cardData.id, selectedCard.location, playerNum, selectedCard.boardIndex);
-            }
-
-            // Place the card on the new board slot
-            player.board[boardIndex] = { data: cardData }; // Removed isFaceDown and isRotated
-
-            displayBoard(playerNum); // Refresh board display
-            resetSelectedCard(); // Reset selected card state
-            cardModal.classList.remove('active'); // Close modal
-            deckGraveyardMenu.classList.remove('active'); // Close menu if open
-
-            // Remove targetable class from all slots
-            const boardSlots = boards[playerNum].querySelectorAll('.board-slot');
-            boardSlots.forEach(slot => {
+        function resetSelectedCard() {
+            selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null, isFaceDown: false, isRotated: false }; // Reset new properties too
+            isMovingCard = false;
+            document.querySelectorAll('.board-slot.targetable').forEach(slot => {
                 slot.classList.remove('targetable');
             });
+            document.querySelectorAll('.card.selected-for-move').forEach(card => {
+                card.classList.remove('selected-for-move');
+            });
+            modalGraveyardBtn.style.display = 'inline-block';
+            modalDeckBtn.style.display = 'inline-block';
+            modalRotateCardBtn.style.display = 'none'; // Hide new buttons
+            modalFaceDownRotateCardBtn.style.display = 'none'; // Hide new buttons
+        }
+
+        function drawCard(playerNumber) {
+            const player = players[playerNumber];
+            if (player.deck.length > 0) {
+                const drawnCard = player.deck.shift();
+                player.hand.push(drawnCard);
+                renderHand(playerNumber);
+                renderDeck(playerNumber);
+                deckGraveyardMenu.classList.remove('active');
+                resetSelectedCard();
+                console.log(`J${playerNumber} a pioché : ${drawnCard.id}`);
+            } else {
+                alert(`Votre deck est vide !`);
+            }
+        }
+
+        function handleCardClick(cardElement, cardData, location, playerNumber, boardIndex = null, currentIsFaceDown = false, currentIsRotated = false) { // Added currentIsFaceDown and currentIsRotated
+            if (isMovingCard && location === 'board' && playerNumber === selectedCard.player) {
+                if (selectedCard.element === cardElement) {
+                    resetSelectedCard();
+                    alert("Déplacement annulé.");
+                    return;
+                }
+                selectedCard.element = cardElement;
+                selectedCard.data = cardData;
+                selectedCard.location = location;
+                selectedCard.player = playerNumber;
+                selectedCard.boardIndex = boardIndex;
+                selectedCard.isFaceDown = currentIsFaceDown; // Store the state
+                selectedCard.isRotated = currentIsRotated; // Store the state
+
+
+                document.querySelectorAll('.card.selected-for-move').forEach(c => c.classList.remove('selected-for-move'));
+                cardElement.classList.add('selected-for-move');
+
+                document.querySelectorAll('.board-slot').forEach(slot => {
+                    slot.classList.remove('targetable');
+                });
+                const boardSlots = document.querySelectorAll(`#board${playerNumber} .board-slot`);
+                boardSlots.forEach(slot => {
+                    const idx = parseInt(slot.dataset.slotIndex);
+                    if (players[playerNumber].board[idx] === null || idx === boardIndex) {
+                        slot.classList.add('targetable');
+                    }
+                });
+                return;
+            }
+
+            resetSelectedCard();
+            selectedCard.element = cardElement;
+            selectedCard.data = cardData;
+            selectedCard.location = location;
+            selectedCard.player = playerNumber;
+            selectedCard.boardIndex = boardIndex;
+            selectedCard.isFaceDown = currentIsFaceDown; // Store the state
+            selectedCard.isRotated = currentIsRotated; // Store the state
+
+            modalCardDisplay.style.backgroundImage = `url(${cardData.path})`; // Always show true card image in modal
+            cardModal.classList.add('active');
+
+            modalGraveyardBtn.style.display = 'inline-block';
+            modalDeckBtn.style.display = 'inline-block';
+
+            // Gérer la visibilité des nouveaux boutons
+            modalRotateCardBtn.style.display = (location === 'board') ? 'inline-block' : 'none';
+            modalFaceDownRotateCardBtn.style.display = (location === 'board') ? 'inline-block' : 'none';
+
+            if (location === 'hand') {
+                modalMoveCardBtn.textContent = 'Poser sur Plateau';
+            } else if (location === 'board') {
+                modalMoveCardBtn.textContent = 'Déplacer sur Plateau';
+            } else if (location === 'grid') {
+                modalMoveCardBtn.textContent = 'Prendre la carte (main)';
+                if (selectedCard.menuOrigin === 'deck') {
+                    modalDeckBtn.style.display = 'none';
+                }
+                if (selectedCard.menuOrigin === 'graveyard') {
+                    modalGraveyardBtn.style.display = 'none';
+                }
+            }
+        }
+
+        function handleBoardSlotClick(e) {
+            const slotDiv = e.currentTarget;
+            const slotIndex = parseInt(slotDiv.dataset.slotIndex);
+            const playerNum = parseInt(slotDiv.dataset.player);
+
+            if (!isMovingCard || !slotDiv.classList.contains('targetable')) {
+                return;
+            }
+
+            if (!selectedCard.data || selectedCard.player !== playerNum) {
+                resetSelectedCard();
+                return;
+            }
+
+            const targetPlayer = players[playerNum];
+
+            if (targetPlayer.board[slotIndex] !== null && slotIndex !== selectedCard.boardIndex) {
+                alert('Cet emplacement est déjà occupé ! Choisissez un emplacement vide.');
+                return;
+            }
+
+            if (selectedCard.location === 'hand') {
+                const cardIndexInHand = targetPlayer.hand.findIndex(c => c.id === selectedCard.data.id);
+                if (cardIndexInHand > -1) {
+                    const cardToPlace = targetPlayer.hand.splice(cardIndexInHand, 1)[0];
+                    // Store the card with initial states
+                    targetPlayer.board[slotIndex] = { card: cardToPlace, isFaceDown: false, isRotated: false }; // MODIFICATION HERE
+                    renderHand(playerNum);
+                    renderBoard(playerNum);
+                    cardModal.classList.remove('active');
+                    deckGraveyardMenu.classList.remove('active');
+                    console.log(`Carte ${cardToPlace.id} posée sur l'emplacement ${slotIndex}.`);
+                }
+            } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
+                const cardObjectToMove = targetPlayer.board[selectedCard.boardIndex]; // Get the complete card object
+                if (cardObjectToMove) {
+                    targetPlayer.board[selectedCard.boardIndex] = null;
+                    targetPlayer.board[slotIndex] = cardObjectToMove; // Move the complete object
+                    renderBoard(playerNum);
+                    cardModal.classList.remove('active');
+                    deckGraveyardMenu.classList.remove('active');
+                    console.log(`Carte ${cardObjectToMove.card.id} déplacée de ${selectedCard.boardIndex} à ${slotIndex}.`);
+                }
+            }
+            resetSelectedCard();
+        }
+
+        function rotateCard() {
+            if (!selectedCard.data || selectedCard.location !== 'board' || selectedCard.boardIndex === null) return;
+
+            const playerNum = selectedCard.player;
+            const targetPlayer = players[playerNum];
+            const cardObject = targetPlayer.board[selectedCard.boardIndex];
+
+            if (cardObject) {
+                cardObject.isRotated = !cardObject.isRotated; // Toggle rotation state
+                renderBoard(playerNum); // Refresh the board
+                cardModal.classList.remove('active');
+                console.log(`Carte ${cardObject.card.id} ${cardObject.isRotated ? 'pivotée' : 'dé-pivotée'}.`);
+            }
+            resetSelectedCard();
+        }
+
+        function toggleFaceDownAndRotate() {
+            if (!selectedCard.data || selectedCard.location !== 'board' || selectedCard.boardIndex === null) return;
+
+            const playerNum = selectedCard.player;
+            const targetPlayer = players[playerNum];
+            const cardObject = targetPlayer.board[selectedCard.boardIndex];
+
+            if (cardObject) {
+                cardObject.isFaceDown = !cardObject.isFaceDown; // Toggle face down state
+                cardObject.isRotated = true; // Always rotated 90° if face down
+                renderBoard(playerNum); // Refresh the board
+                cardModal.classList.remove('active');
+                console.log(`Carte ${cardObject.card.id} mise ${cardObject.isFaceDown ? 'face cachée et pivotée' : 'face visible et dé-pivotée'}.`);
+            }
+            resetSelectedCard();
         }
 
         function moveToGraveyard() {
             if (!selectedCard.data) return;
 
-            const player = players[selectedCard.player];
-            // If card is already in graveyard, do nothing
-            if (selectedCard.location === 'graveyard') {
-                alert("Cette carte est déjà dans le cimetière.");
-                resetSelectedCard();
+            const playerNum = selectedCard.player;
+            const targetPlayer = players[playerNum];
+
+            let cardToMove = null;
+
+            if (selectedCard.location === 'hand') {
+                const index = targetPlayer.hand.findIndex(c => c.id === selectedCard.data.id);
+                if (index > -1) cardToMove = targetPlayer.hand.splice(index, 1)[0];
+                renderHand(playerNum);
+            } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
+                // Get only the cardData from the cardObject
+                cardToMove = targetPlayer.board[selectedCard.boardIndex].card;
+                targetPlayer.board[selectedCard.boardIndex] = null;
+                renderBoard(playerNum);
+            } else if (selectedCard.menuOrigin === 'deck') {
+                const index = targetPlayer.deck.findIndex(c => c.id === selectedCard.data.id);
+                if (index > -1) cardToMove = targetPlayer.deck.splice(index, 1)[0];
+                renderDeck(playerNum);
+            } else if (selectedCard.menuOrigin === 'graveyard') {
+                console.log("La carte est déjà au cimetière.");
                 cardModal.classList.remove('active');
+                deckGraveyardMenu.classList.remove('active');
+                resetSelectedCard();
                 return;
             }
 
-            // Add card to graveyard
-            player.graveyard.push(selectedCard.data);
-
-            // Remove card from its original location
-            removeCardFromLocation(selectedCard.data.id, selectedCard.location, selectedCard.player, selectedCard.boardIndex);
-
-            updateGraveyardCount(selectedCard.player);
-            resetSelectedCard();
-            cardModal.classList.remove('active');
-            deckGraveyardMenu.classList.remove('active');
+            if (cardToMove) { // Ensure a card was retrieved
+                targetPlayer.graveyard.push(cardToMove);
+                renderGraveyard(playerNum);
+                cardModal.classList.remove('active');
+                deckGraveyardMenu.classList.remove('active');
+                console.log(`Carte ${cardToMove.id} envoyée au cimetière.`);
+                resetSelectedCard();
+            }
         }
 
         function moveToDeck() {
             if (!selectedCard.data) return;
 
-            const player = players[selectedCard.player];
-            // If card is already in deck, do nothing
-            if (selectedCard.location === 'deck') {
-                alert("Cette carte est déjà dans le deck.");
-                resetSelectedCard();
-                cardModal.classList.remove('active');
-                return;
+            const playerNum = selectedCard.player;
+            const targetPlayer = players[playerNum];
+
+            let cardToMove = null;
+
+            if (selectedCard.location === 'hand') {
+                const index = targetPlayer.hand.findIndex(c => c.id === selectedCard.data.id);
+                if (index > -1) cardToMove = targetPlayer.hand.splice(index, 1)[0];
+                renderHand(playerNum);
+            } else if (selectedCard.location === 'board' && selectedCard.boardIndex !== null) {
+                // Get only the cardData from the cardObject
+                cardToMove = targetPlayer.board[selectedCard.boardIndex].card;
+                targetPlayer.board[selectedCard.boardIndex] = null;
+                renderBoard(playerNum);
+            } else if (selectedCard.menuOrigin === 'graveyard') {
+                const index = targetPlayer.graveyard.findIndex(c => c.id === selectedCard.data.id);
+                if (index > -1) cardToMove = targetPlayer.graveyard.splice(index, 1)[0];
+                renderGraveyard(playerNum);
+            } else if (selectedCard.menuOrigin === 'deck') {
+                 console.log("La carte est déjà dans le deck.");
+                 cardModal.classList.remove('active');
+                 deckGraveyardMenu.classList.remove('active');
+                 resetSelectedCard();
+                 return;
             }
 
-            // Add card to deck
-            player.deck.push(selectedCard.data);
-            shuffleArray(player.deck); // Shuffle deck after adding
-
-            // Remove card from its original location
-            removeCardFromLocation(selectedCard.data.id, selectedCard.location, selectedCard.player, selectedCard.boardIndex);
-
-            updateDeckCount(selectedCard.player);
-            resetSelectedCard();
-            cardModal.classList.remove('active');
-            deckGraveyardMenu.classList.remove('active');
+            if (cardToMove) { // Ensure a card was retrieved
+                targetPlayer.deck.push(cardToMove);
+                shuffleArray(targetPlayer.deck);
+                renderDeck(playerNum);
+                cardModal.classList.remove('active');
+                deckGraveyardMenu.classList.remove('active');
+                console.log(`Carte ${cardToMove.id} renvoyée au deck et deck mélangé.`);
+                resetSelectedCard();
+            }
         }
 
-        function moveToHand() {
+        function prepareMoveOnBoard() {
             if (!selectedCard.data) return;
 
-            const playerHand = players[selectedCard.player].hand;
-            const playerDeck = players[selectedCard.player].deck;
-            const playerGraveyard = players[selectedCard.player].graveyard;
+            cardModal.classList.remove('active');
 
-            // Vérifier si la carte est déjà dans la main pour éviter les doublons ou actions inutiles
-            if (playerHand.some(card => card.id === selectedCard.data.id)) {
-                console.log("La carte est déjà dans la main.");
-                resetSelectedCard();
-                cardModal.classList.remove('active');
-                return;
-            }
+            document.querySelectorAll('.board-slot').forEach(slot => {
+                slot.classList.remove('targetable');
+            });
+            document.querySelectorAll('.card.selected-for-move').forEach(card => {
+                card.classList.remove('selected-for-move');
+            });
 
-            // Ajouter la carte à la main
-            playerHand.push(selectedCard.data);
+            if (selectedCard.location === 'hand') {
+                isMovingCard = true;
+                const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
+                boardSlots.forEach(slot => {
+                    const idx = parseInt(slot.dataset.slotIndex);
+                    if (players[selectedCard.player].board[idx] === null) {
+                        slot.classList.add('targetable');
+                    }
+                });
+                alert("Clique maintenant sur un emplacement libre du plateau pour poser cette carte.");
 
-            // Retirer la carte de son emplacement d'origine (deck ou cimetière ou plateau)
-            if (selectedCard.location === 'deck') {
-                const index = playerDeck.findIndex(card => card.id === selectedCard.data.id);
-                if (index !== -1) {
-                    playerDeck.splice(index, 1);
-                    updateDeckCount(selectedCard.player);
-                }
-            } else if (selectedCard.location === 'graveyard') {
-                const index = playerGraveyard.findIndex(card => card.id === selectedCard.data.id);
-                if (index !== -1) {
-                    playerGraveyard.splice(index, 1);
-                    updateGraveyardCount(selectedCard.player);
-                }
             } else if (selectedCard.location === 'board') {
-                if (selectedCard.boardIndex !== -1 && players[selectedCard.player].board[selectedCard.boardIndex] && players[selectedCard.player].board[selectedCard.boardIndex].data.id === selectedCard.data.id) {
-                    players[selectedCard.player].board[selectedCard.boardIndex] = null;
+                isMovingCard = true;
+                selectedCard.element.classList.add('selected-for-move');
+
+                const boardSlots = document.querySelectorAll(`#board${selectedCard.player} .board-slot`);
+                boardSlots.forEach(slot => {
+                    const idx = parseInt(slot.dataset.slotIndex);
+                    if (players[selectedCard.player].board[idx] === null || idx === selectedCard.boardIndex) {
+                        slot.classList.add('targetable');
+                    }
+                });
+                alert("Clique sur un emplacement LIBRE sur le plateau pour y déplacer la carte. Re-clique sur la carte marquée pour annuler.");
+
+            } else if (selectedCard.location === 'grid') {
+                const targetHand = players[selectedCard.player].hand;
+                let sourceZone = null;
+                if (selectedCard.menuOrigin === 'deck') {
+                    sourceZone = players[selectedCard.player].deck;
+                } else if (selectedCard.menuOrigin === 'graveyard') {
+                    sourceZone = players[selectedCard.player].graveyard;
+                }
+
+                if (sourceZone) {
+                    const index = sourceZone.findIndex(c => c.id === selectedCard.data.id);
+                    if (index > -1) {
+                        const cardToTake = sourceZone.splice(index, 1)[0];
+                        targetHand.push(cardToTake);
+                        renderHand(selectedCard.player);
+                        renderDeck(selectedCard.player);
+                        renderGraveyard(selectedCard.player);
+                        deckGraveyardMenu.classList.remove('active');
+                        alert(`Carte ${cardToTake.id} ajoutée à votre main.`);
+                        resetSelectedCard();
+                    }
                 }
             }
-
-            displayHand(selectedCard.player); // Mettre à jour l'affichage de la main
-            displayBoard(selectedCard.player); // Mettre à jour l'affichage du plateau (si la carte vient de là)
-            resetSelectedCard(); // Réinitialiser la carte sélectionnée
-            cardModal.classList.remove('active'); // Fermer la modale
-            deckGraveyardMenu.classList.remove('active'); // Fermer le menu si ouvert
         }
 
+        function handleDeckClick(playerNumber) {
+            menuTitle.textContent = `Votre Deck`;
+            menuOptions.innerHTML = `
+                <button id="drawCardBtn">Piocher une carte</button>
+                <button id="searchDeckBtn">Chercher dans le deck</button>
+            `;
+            cardSelectionGrid.innerHTML = '';
+            deckGraveyardMenu.classList.add('active');
+            resetSelectedCard();
 
-        function openDeckGraveyardMenu(playerNum, origin) {
-            menuTitle.textContent = (origin === 'deck') ? `Cartes du Deck (Joueur ${playerNum})` : `Cartes du Cimetière (Joueur ${playerNum})`;
-            menuOptions.innerHTML = ''; // Clear existing options
+            document.getElementById('drawCardBtn').onclick = () => drawCard(playerNumber);
+            document.getElementById('searchDeckBtn').onclick = () => searchZone('deck', playerNumber);
+        }
+
+        function handleGraveyardClick(playerNumber) {
+            menuTitle.textContent = `Votre Cimetière`;
+            menuOptions.innerHTML = `
+                <button id="retrieveCardBtn">Récupérer une carte</button>
+                <button id="viewGraveyardBtn">Voir le cimetière</button>
+            `;
+            cardSelectionGrid.innerHTML = '';
+            deckGraveyardMenu.classList.add('active');
+            resetSelectedCard();
+
+            document.getElementById('retrieveCardBtn').onclick = () => searchZone('graveyard', playerNumber, true);
+            document.getElementById('viewGraveyardBtn').onclick = () => searchZone('graveyard', playerNumber, false);
+        }
+
+        function searchZone(zoneType, playerNumber, canRetrieve = false) {
+            let cardsInZone = [];
+            if (zoneType === 'deck') {
+                cardsInZone = players[playerNumber].deck;
+                menuTitle.textContent = `Contenu de votre Deck`;
+                menuOptions.innerHTML = `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la mettre en main.</p>`;
+            } else if (zoneType === 'graveyard') {
+                cardsInZone = players[playerNumber].graveyard;
+                menuTitle.textContent = `Contenu de votre Cimetière`;
+                menuOptions.innerHTML = canRetrieve ? `<p style="color:#eee;font-size:0.9em;">Cliquez sur une carte pour la récupérer en main.</p>` : `<p style="color:#eee;font-size:0.9em;">(Cimetière vide)</p>`;
+            }
+
             cardSelectionGrid.innerHTML = '';
 
-            const cardsToDisplay = (origin === 'deck') ? players[playerNum].deck : players[playerNum].graveyard;
-
-            if (cardsToDisplay.length === 0) {
-                cardSelectionGrid.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Aucune carte ici.</p>';
-            } else {
-                cardsToDisplay.forEach(cardData => {
-                    const cardElement = createCardElement(cardData);
-                    cardElement.dataset.location = origin;
-                    cardElement.dataset.player = playerNum;
-                    cardElement.addEventListener('click', () => {
-                        selectedCard = { element: cardElement, data: cardData, location: origin, player: playerNum, menuOrigin: origin };
-                        openCardModal(cardElement, cardData, origin, playerNum);
-                    });
-                    cardSelectionGrid.appendChild(cardElement);
-                });
-            }
-            deckGraveyardMenu.classList.add('active');
-        }
-
-
-        function initializeDuel(deckName) {
-            const selectedDeck = savedDecks[deckName];
-            if (!selectedDeck || selectedDeck.length < MIN_DECK_SIZE) {
-                alert(`Le deck "${deckName}" est invalide ou incomplet.`);
+            if (cardsInZone.length === 0) {
+                cardSelectionGrid.innerHTML = `<p style="color: #999; text-align: center; margin-top: 20px;">Cette zone est vide.</p>`;
                 return;
             }
 
-            player1.deck = [...selectedDeck]; // Copie le deck sélectionné
-            shuffleArray(player1.deck);
-            player1.hand = [];
-            player1.graveyard = [];
-            player1.board = Array(15).fill(null); // Réinitialise le plateau
-            player1.lp = 8000; // Points de vie
-            player1.selectedDeckName = deckName; // Stocke le nom du deck pour référence
+            const cardsToDisplay = [...cardsInZone];
+            cardsToDisplay.sort((a, b) => a.id.localeCompare(b.id));
 
-            // Mettre à jour l'affichage
-            lpCounters['1'].textContent = player1.lp;
-            updateDeckCount('1');
-            updateGraveyardCount('1');
-            displayHand('1');
-            displayBoard('1');
+            cardsToDisplay.forEach(card => {
+                const cardDiv = createCardElement(card);
+                cardSelectionGrid.appendChild(cardDiv);
 
-            // Cacher le modal de sélection de deck et afficher le tab duel
-            selectDeckModal.classList.remove('active');
-            document.querySelector('.tab-button[data-tab="duel"]').click(); // Active le tab duel
+                if (canRetrieve || zoneType === 'deck') {
+                    cardDiv.addEventListener('click', () => {
+                        selectedCard.element = cardDiv;
+                        selectedCard.data = card;
+                        selectedCard.location = 'grid';
+                        selectedCard.player = playerNumber;
+                        selectedCard.boardIndex = null;
+                        selectedCard.menuOrigin = zoneType;
+                        selectedCard.isFaceDown = false; // Reset these when picking from menu
+                        selectedCard.isRotated = false; // Reset these when picking from menu
+
+
+                        modalCardDisplay.style.backgroundImage = `url(${card.path})`;
+                        cardModal.classList.add('active');
+
+                        modalMoveCardBtn.textContent = 'Prendre la carte (main)';
+                        modalGraveyardBtn.style.display = 'inline-block';
+                        modalDeckBtn.style.display = 'inline-block';
+                        modalRotateCardBtn.style.display = 'none'; // Hide new buttons
+                        modalFaceDownRotateCardBtn.style.display = 'none'; // Hide new buttons
+
+
+                        if (zoneType === 'deck') {
+                            modalDeckBtn.style.display = 'none';
+                        }
+                        if (zoneType === 'graveyard') {
+                            modalGraveyardBtn.style.display = 'none';
+                        }
+                    });
+                }
+            });
         }
 
-
-        // --- Initialisation et Écouteurs d'événements ---
+        // --- Initialisation et Événements ---
         document.addEventListener('DOMContentLoaded', () => {
             generateAllAvailableCards();
             loadSavedDecks();
-            updateCurrentDeckDisplay(); // Afficher un deck vide au démarrage
+            resetCurrentEditingDeck(); // Initialize the current editing deck display
 
             // Gestion des onglets
-            document.querySelectorAll('.tab-button').forEach(button => {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const tab = button.dataset.tab;
-                    document.querySelectorAll('.tab-content').forEach(content => {
-                        content.classList.remove('active');
-                    });
-                    document.querySelectorAll('.tab-button').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
+
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+
                     document.getElementById(tab).classList.add('active');
                     button.classList.add('active');
 
-                    // Si on passe au tab duel, afficher le modal de sélection de deck
-                    if (tab === 'duel') {
-                        renderAvailableDecksForSelection();
-                        selectDeckModal.classList.add('active');
+                    if (tab === 'deck-management') {
+                        // Re-render all deck related UI when tab is activated
+                        loadSavedDecks();
+                        renderCurrentEditingDeckDisplay();
+                    } else if (tab === 'duel') {
+                        initializeDuel();
                     }
                 });
             });
 
-            // Gestion des événements du Deck Builder
-            addNewCardBtn.addEventListener('click', () => {
-                // Si aucun deck n'est en cours, initialiser un nouveau deck vide
-                if (!currentEditingDeck.name) {
-                    let newDeckName = prompt("Nommez votre nouveau deck :");
-                    if (newDeckName) {
-                        newDeckName = newDeckName.trim();
-                        if (savedDecks[newDeckName]) {
-                            alert("Un deck avec ce nom existe déjà. Veuillez choisir un nom différent ou éditer le deck existant.");
-                            return;
-                        }
-                        currentEditingDeck.name = newDeckName;
-                        currentEditingDeckNameInput.value = newDeckName;
-                        currentEditingDeckNameInput.disabled = false;
-                        updateCurrentDeckDisplay();
-                    } else {
-                        return; // L'utilisateur a annulé
-                    }
+            document.querySelector('.tab-button.active').click(); // Activate first tab on load
+
+            // --- Nouveaux Événements Gestion des Decks ---
+            addNewCardBtn.addEventListener('click', openAddCardToDeckModal);
+
+            closeAddCardToDeckModal.addEventListener('click', () => {
+                addCardToDeckModal.classList.remove('active');
+                // If closing this modal, and cardDetailModal is not active, reset cardToAddToCurrentDeck
+                if (!cardDetailModal.classList.contains('active')) {
+                    cardToAddToCurrentDeck = null;
                 }
-                showAddCardModal();
             });
+
+            closeCardDetailModal.addEventListener('click', () => {
+                cardDetailModal.classList.remove('active');
+                cardToAddToCurrentDeck = null;
+                // Optionally re-open addCardToDeckModal if desired, or just close it all
+                // addCardToDeckModal.classList.add('active');
+            });
+
+            addCardToCurrentDeckBtn.addEventListener('click', addSelectedCardToCurrentDeck);
+            cancelAddCardBtn.addEventListener('click', cancelAddCard);
 
             saveCurrentDeckBtn.addEventListener('click', saveCurrentDeck);
-            cancelCurrentDeckBtn.addEventListener('click', cancelCurrentDeckEditing);
-            clearCurrentDeckBtn.addEventListener('click', clearCurrentDeck);
-
-            closeAddCardToDeckModal.addEventListener('click', () => addCardToDeckModal.classList.remove('active'));
-            addCardToCurrentDeckBtn.addEventListener('click', addCardToCurrentDeck);
-            cancelAddCardBtn.addEventListener('click', cancelAddCard);
-            closeCardDetailModal.addEventListener('click', cancelAddCard); // Peut aussi fermer la modale de détail
-
-            closeViewDeckModal.addEventListener('click', () => viewDeckModal.classList.remove('active'));
-
-
-            // Gestion des événements du Duel
-            decks['1'].addEventListener('click', () => drawCard('1')); // Draw card for player 1
-            graveyards['1'].addEventListener('click', () => openDeckGraveyardMenu('1', 'graveyard'));
-
-            lpCounters['1'].previousElementSibling.addEventListener('click', () => { // LP minus for player 1
-                players['1'].lp = Math.max(0, players['1'].lp - 100);
-                lpCounters['1'].textContent = players['1'].lp;
+            cancelCurrentDeckBtn.addEventListener('click', () => {
+                if (confirm("Voulez-vous annuler la modification du deck en cours et vider le deck ?")) {
+                    resetCurrentEditingDeck();
+                }
             });
-            lpCounters['1'].nextElementSibling.addEventListener('click', () => { // LP plus for player 1
-                players['1'].lp += 100;
-                lpCounters['1'].textContent = players['1'].lp;
+            clearCurrentDeckBtn.addEventListener('click', () => {
+                if (confirm("Voulez-vous vraiment vider le deck en cours ?")) {
+                    currentEditingDeck.cards = [];
+                    renderCurrentEditingDeckDisplay();
+                }
             });
 
+            // "Voir" deck modal close
+            closeViewDeckModal.addEventListener('click', () => {
+                viewDeckModal.classList.remove('active');
+            });
+
+            // --- Événements Duel (inchangées) ---
+            document.querySelectorAll('.lp-plus').forEach(button => {
+                if (parseInt(button.dataset.player) === 1) {
+                    button.addEventListener('click', (e) => updateLP(1, 1));
+                }
+            });
+            document.querySelectorAll('.lp-minus').forEach(button => {
+                if (parseInt(button.dataset.player) === 1) {
+                    button.addEventListener('click', (e) => updateLP(1, -1));
+                }
+            });
+
+            decks['1'].addEventListener('click', () => handleDeckClick(1));
+            graveyards['1'].addEventListener('click', () => handleGraveyardClick(1));
 
             toggleHandBtns.forEach(button => {
                 if (parseInt(button.dataset.player) === 1) {
@@ -1713,8 +2011,12 @@
             modalMoveCardBtn.addEventListener('click', prepareMoveOnBoard);
             modalGraveyardBtn.addEventListener('click', moveToGraveyard);
             modalDeckBtn.addEventListener('click', moveToDeck);
-            modalTakeToHandBtn.addEventListener('click', moveToHand); // NOUVEL ÉCOUTEUR
             
+            // New event listeners for rotate and face-down buttons
+            modalRotateCardBtn.addEventListener('click', rotateCard);
+            modalFaceDownRotateCardBtn.addEventListener('click', toggleFaceDownAndRotate);
+
+
             menuCloseBtn.addEventListener('click', () => {
                 deckGraveyardMenu.classList.remove('active');
                 resetSelectedCard();
@@ -1723,58 +2025,6 @@
             closeSelectDeckModal.addEventListener('click', () => selectDeckModal.classList.remove('active'));
             startDuelWithSelectedDeckBtn.addEventListener('click', startDuel);
 
-            function renderAvailableDecksForSelection() {
-                availableDecksList.innerHTML = '';
-                if (Object.keys(savedDecks).length === 0) {
-                    availableDecksList.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Aucun deck sauvegardé. Créez-en un dans l\'onglet "Gestion des Decks".</p>';
-                    startDuelWithSelectedDeckBtn.disabled = true;
-                    return;
-                }
-                startDuelWithSelectedDeckBtn.disabled = false;
-
-                for (const name in savedDecks) {
-                    const deckItem = document.createElement('div');
-                    deckItem.classList.add('deck-item');
-                    deckItem.style.backgroundColor = '#2c3e50'; // Override for selection modal
-
-                    const radioInput = document.createElement('input');
-                    radioInput.type = 'radio';
-                    radioInput.name = 'selectedDeckForDuel';
-                    radioInput.value = name;
-                    radioInput.id = `radio-${name}`;
-                    radioInput.addEventListener('change', () => {
-                        player1.selectedDeckName = name; // Store selected deck name
-                    });
-
-                    const label = document.createElement('label');
-                    label.htmlFor = `radio-${name}`;
-                    label.textContent = `${name} (${savedDecks[name].length} cartes)`;
-                    label.style.flexGrow = '1';
-                    label.style.cursor = 'pointer';
-
-                    deckItem.appendChild(radioInput);
-                    deckItem.appendChild(label);
-                    availableDecksList.appendChild(deckItem);
-                }
-
-                // Select the first valid deck by default if available
-                const firstDeckName = Object.keys(savedDecks)[0];
-                if (firstDeckName) {
-                    const firstRadio = document.getElementById(`radio-${firstDeckName}`);
-                    if (firstRadio) {
-                        firstRadio.checked = true;
-                        player1.selectedDeckName = firstDeckName;
-                    }
-                }
-            }
-
-            function startDuel() {
-                if (player1.selectedDeckName) {
-                    initializeDuel(player1.selectedDeckName);
-                } else {
-                    alert("Veuillez sélectionner un deck pour démarrer le duel.");
-                }
-            }
         });
     </script>
 </body>
