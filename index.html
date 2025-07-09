@@ -292,21 +292,9 @@
             display: block;
             pointer-events: none;
         }
-        /* Nouvelle classe pour la rotation */
-        .card.rotated {
-            transform: rotate(90deg);
-            transform-origin: center center;
-            width: 120px; /* Ancien height */
-            height: 80px; /* Ancien width */
-        }
-        .card.rotated img {
-            max-width: 100%;
-            max-height: 100%;
-        }
-
+        
 .board {
     display: grid;
-    /* Conservez ces propriétés pour les écrans plus grands, si nécessaire */
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: repeat(3, 1fr);
     gap: 5px;
@@ -323,15 +311,6 @@
     z-index: 10;
 }
 
-@media (max-width: 450px) {
-    .board {
-        /* Chaque colonne aura une taille minimale de 50px et maximale de 1 fraction */
-        grid-template-columns: repeat(5, minmax(50px, 1fr));
-        width: 98vw; /* Ou 95vw, pour être sûr */
-        gap: 2px; /* Réduisez encore le gap */
-        padding: 2px; /* Réduisez encore le padding */
-    }
-}
         .board-slot {
             width: 80px;
             height: 120px;
@@ -866,9 +845,7 @@
                 <div class="modal-card-display" id="modalCardDisplay"></div>
                 <div class="modal-actions">
                     <button id="modalMoveCardBtn">Déplacer sur le plateau</button>
-                    <button id="modalTakeToHandBtn">Prendre en main</button> <button id="modalRotateCardBtn">Pivoter (90°)</button>
-                    <button id="modalFaceDownRotateCardBtn">Face cachée & pivotée</button>
-                    <button id="modalGraveyardBtn">Cimetière</button>
+                    <button id="modalTakeToHandBtn">Prendre en main</button> <button id="modalGraveyardBtn">Cimetière</button>
                     <button id="modalDeckBtn">Deck</button>
                 </div>
             </div>
@@ -947,7 +924,7 @@
         let player1 = { deck: [], hand: [], graveyard: [], board: Array(15).fill(null), lp: 60, selectedDeckName: null }; // Board size changed to 15
         let players = { '1': player1 }; // L'objet players ne contient plus que le joueur 1
 
-        let selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null, isFaceDown: false, isRotated: false }; // Added isFaceDown and isRotated
+        let selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null }; // Removed isFaceDown and isRotated
         let isMovingCard = false;
         let cardToAddToCurrentDeck = null; // Carte sélectionnée dans addCardToDeckModal pour ajout
 
@@ -959,9 +936,8 @@
         const modalGraveyardBtn = document.getElementById('modalGraveyardBtn');
         const modalDeckBtn = document.getElementById('modalDeckBtn');
         // New buttons
-        const modalRotateCardBtn = document.getElementById('modalRotateCardBtn');
-        const modalFaceDownRotateCardBtn = document.getElementById('modalFaceDownRotateCardBtn');
         const modalTakeToHandBtn = document.getElementById('modalTakeToHandBtn'); // NOUVEAU
+
         const deckGraveyardMenu = document.getElementById('deckGraveyardMenu');
         const menuCloseBtn = document.getElementById('menuCloseBtn');
         const menuTitle = document.getElementById('menuTitle');
@@ -1021,46 +997,27 @@
             return `images/${type}/${type}_${paddedNumber}.jpg`;
         }
 
-        function createCardElement(cardData, isFaceDown = false, isPreview = false, isRemovable = false, isRotated = false) { // Added isRotated
+        function createCardElement(cardData, isPreview = false, isRemovable = false) { // Removed isFaceDown and isRotated
             const cardDiv = document.createElement('div');
             cardDiv.classList.add('card');
             if (isPreview) cardDiv.classList.add('card-preview');
-            if (isRotated) cardDiv.classList.add('rotated'); // New class for rotation
             cardDiv.dataset.cardId = cardData.id;
             cardDiv.dataset.imagePath = cardData.path;
             cardDiv.dataset.cardType = cardData.type;
-            cardDiv.dataset.isFaceDown = isFaceDown; // New data attribute
-            cardDiv.dataset.isRotated = isRotated; // New data attribute
 
-            if (isFaceDown) {
-                cardDiv.style.backgroundImage = `url(images/dos.jpg)`; // Image de dos de carte
-                cardDiv.style.backgroundSize = 'cover';
-                cardDiv.style.backgroundPosition = 'center';
-                cardDiv.textContent = ''; // Pas de texte si c'est le dos
-            } else {
-                const img = document.createElement('img');
-                img.src = cardData.path;
-                img.alt = `Carte ${cardData.id}`;
-                cardDiv.appendChild(img);
+            const img = document.createElement('img');
+            img.src = cardData.path;
+            img.alt = `Carte ${cardData.id}`;
+            cardDiv.appendChild(img);
 
-                // La partie suivante pour afficher l'ID de la carte a été commentée
-                // ou supprimée si vous avez suivi les instructions précédentes.
-                // Si vous souhaitez remettre l'ID, décommentez ou réécrivez :
-                // if (isPreview) {
-                //     const span = document.createElement('span');
-                //     span.textContent = cardData.id;
-                //     cardDiv.appendChild(span);
-                // }
-
-                // AJOUT POUR LE BOUTON DE SUPPRESSION
-                if (isRemovable) {
-                    const removeBtn = document.createElement('button');
-                    removeBtn.classList.add('remove-card-btn');
-                    removeBtn.textContent = '-';
-                    removeBtn.title = 'Retirer du deck';
-                    removeBtn.dataset.cardId = cardData.id; // Stocke l'ID pour la suppression
-                    cardDiv.appendChild(removeBtn);
-                }
+            // AJOUT POUR LE BOUTON DE SUPPRESSION
+            if (isRemovable) {
+                const removeBtn = document.createElement('button');
+                removeBtn.classList.add('remove-card-btn');
+                removeBtn.textContent = '-';
+                removeBtn.title = 'Retirer du deck';
+                removeBtn.dataset.cardId = cardData.id; // Stocke l'ID pour la suppression
+                cardDiv.appendChild(removeBtn);
             }
             return cardDiv;
         }
@@ -1168,7 +1125,7 @@
             viewDeckModalTitle.textContent = `Cartes du Deck : ${deckName} (${cardsToDisplay.length} cartes)`;
             viewDeckCardsGrid.innerHTML = '';
             cardsToDisplay.forEach(cardData => {
-                const cardElement = createCardElement(cardData, false, true); // isPreview = true
+                const cardElement = createCardElement(cardData, true); // isPreview = true
                 viewDeckCardsGrid.appendChild(cardElement);
             });
             viewDeckModal.classList.add('active');
@@ -1182,7 +1139,7 @@
             let piCount = 0;
 
             currentEditingDeck.cards.forEach(cardData => {
-                const cardElement = createCardElement(cardData, false, true, true); // isPreview, isRemovable
+                const cardElement = createCardElement(cardData, true, true); // isPreview, isRemovable
                 currentDeckCardsGrid.appendChild(cardElement);
 
                 // Incrémenter les compteurs par type
@@ -1205,7 +1162,7 @@
         function showAddCardModal() {
             addCardModalGrid.innerHTML = '';
             allAvailableCards.forEach(cardData => {
-                const cardElement = createCardElement(cardData, false, true); // isPreview = true
+                const cardElement = createCardElement(cardData, true); // isPreview = true
                 cardElement.addEventListener('click', () => showCardDetailModal(cardData));
                 addCardModalGrid.appendChild(cardElement);
             });
@@ -1326,7 +1283,7 @@
             if (selectedCard.element) {
                 selectedCard.element.classList.remove('selected-for-move');
             }
-            selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null, isFaceDown: false, isRotated: false };
+            selectedCard = { element: null, data: null, location: null, player: null, boardIndex: null, menuOrigin: null }; // Removed isFaceDown and isRotated
             isMovingCard = false;
         }
 
@@ -1368,11 +1325,11 @@
             for (let i = 0; i < players[playerNum].board.length; i++) {
                 const cardData = players[playerNum].board[i];
                 if (cardData) {
-                    const cardElement = createCardElement(cardData.data, cardData.isFaceDown, false, false, cardData.isRotated);
+                    const cardElement = createCardElement(cardData.data); // Removed isFaceDown and isRotated
                     cardElement.dataset.location = 'board';
                     cardElement.dataset.player = playerNum;
                     cardElement.dataset.boardIndex = i; // Store board index
-                    cardElement.addEventListener('click', () => openCardModal(cardElement, cardData.data, 'board', playerNum, i, cardData.isFaceDown, cardData.isRotated));
+                    cardElement.addEventListener('click', () => openCardModal(cardElement, cardData.data, 'board', playerNum, i)); // Removed isFaceDown and isRotated
                     boardElement.appendChild(cardElement);
                 } else {
                     const emptySlot = document.createElement('div');
@@ -1399,34 +1356,28 @@
             }
         }
 
-        function openCardModal(element, cardData, location, player, boardIndex = -1, isFaceDown = false, isRotated = false) {
-            selectedCard = { element, data: cardData, location, player, boardIndex, menuOrigin: location, isFaceDown, isRotated };
-            modalCardDisplay.style.backgroundImage = `url(${isFaceDown ? 'images/dos.jpg' : cardData.path})`;
+        function openCardModal(element, cardData, location, player, boardIndex = -1) { // Removed isFaceDown and isRotated
+            selectedCard = { element, data: cardData, location, player, boardIndex, menuOrigin: location }; // Removed isFaceDown and isRotated
+            modalCardDisplay.style.backgroundImage = `url(${cardData.path})`;
             modalCardDisplay.style.backgroundSize = 'cover';
             modalCardDisplay.style.backgroundPosition = 'center';
             cardModal.classList.add('active');
 
-            // Hide/show buttons based on card location and state
+            // Hide/show buttons based on card location
             if (location === 'hand') {
                 modalMoveCardBtn.style.display = 'block'; // Move to board
                 modalGraveyardBtn.style.display = 'block';
                 modalDeckBtn.style.display = 'block';
-                modalRotateCardBtn.style.display = 'none'; // No rotation in hand
-                modalFaceDownRotateCardBtn.style.display = 'none'; // No face-down in hand
                 modalTakeToHandBtn.style.display = 'none'; // Already in hand
             } else if (location === 'board') {
                 modalMoveCardBtn.style.display = 'block'; // Move on board or back to hand
                 modalGraveyardBtn.style.display = 'block';
                 modalDeckBtn.style.display = 'block';
-                modalRotateCardBtn.style.display = 'block'; // Can rotate on board
-                modalFaceDownRotateCardBtn.style.display = 'block'; // Can toggle face-down on board
                 modalTakeToHandBtn.style.display = 'block'; // Can take from board to hand
             } else if (location === 'graveyard' || location === 'deck') {
                 modalMoveCardBtn.style.display = 'block'; // Move to board
                 modalGraveyardBtn.style.display = (location === 'graveyard') ? 'none' : 'block'; // Can't move to graveyard if already there
                 modalDeckBtn.style.display = (location === 'deck') ? 'none' : 'block'; // Can't move to deck if already there
-                modalRotateCardBtn.style.display = 'none'; // No rotation in graveyard/deck
-                modalFaceDownRotateCardBtn.style.display = 'none'; // No face-down in graveyard/deck
                 modalTakeToHandBtn.style.display = 'block'; // Can take from graveyard/deck to hand
             }
         }
@@ -1509,7 +1460,7 @@
             }
 
             // Place the card on the new board slot
-            player.board[boardIndex] = { data: cardData, isFaceDown: selectedCard.isFaceDown, isRotated: selectedCard.isRotated };
+            player.board[boardIndex] = { data: cardData }; // Removed isFaceDown and isRotated
 
             displayBoard(playerNum); // Refresh board display
             resetSelectedCard(); // Reset selected card state
@@ -1641,57 +1592,6 @@
             deckGraveyardMenu.classList.add('active');
         }
 
-        function rotateCard() {
-            if (selectedCard.element && selectedCard.location === 'board') {
-                const currentRotation = selectedCard.isRotated;
-                selectedCard.isRotated = !currentRotation;
-
-                // Update the actual card object on the board
-                if (selectedCard.boardIndex !== null) {
-                    players[selectedCard.player].board[selectedCard.boardIndex].isRotated = selectedCard.isRotated;
-                }
-
-                // Update the modal display immediately
-                selectedCard.element.classList.toggle('rotated', selectedCard.isRotated);
-                
-                // Re-render the board to ensure correct dimensions are applied
-                displayBoard(selectedCard.player);
-
-                // Re-open modal to reflect changes and maintain context
-                openCardModal(selectedCard.element, selectedCard.data, selectedCard.location, selectedCard.player, selectedCard.boardIndex, selectedCard.isFaceDown, selectedCard.isRotated);
-            }
-        }
-
-        function toggleFaceDownAndRotate() {
-            if (selectedCard.element && selectedCard.location === 'board') {
-                selectedCard.isFaceDown = !selectedCard.isFaceDown;
-
-                // Update the actual card object on the board
-                if (selectedCard.boardIndex !== null) {
-                    players[selectedCard.player].board[selectedCard.boardIndex].isFaceDown = selectedCard.isFaceDown;
-                }
-
-                // Update the modal display immediately
-                modalCardDisplay.style.backgroundImage = `url(${selectedCard.isFaceDown ? 'images/dos.jpg' : selectedCard.data.path})`;
-
-                // If face-down, it should also be rotated (as per typical YGO face-down defense position)
-                if (selectedCard.isFaceDown && !selectedCard.isRotated) {
-                    selectedCard.isRotated = true;
-                    if (selectedCard.boardIndex !== null) {
-                        players[selectedCard.player].board[selectedCard.boardIndex].isRotated = true;
-                    }
-                } else if (!selectedCard.isFaceDown && selectedCard.isRotated) {
-                    // If turning face up, keep current rotation unless specified otherwise
-                    // For simplicity, we can just leave it as is, or reset if desired.
-                    // For now, let's just ensure it reflects the state.
-                }
-
-                displayBoard(selectedCard.player); // Re-render the board
-                openCardModal(selectedCard.element, selectedCard.data, selectedCard.location, selectedCard.player, selectedCard.boardIndex, selectedCard.isFaceDown, selectedCard.isRotated); // Re-open modal to reflect changes
-            }
-        }
-
-
 
         function initializeDuel(deckName) {
             const selectedDeck = savedDecks[deckName];
@@ -1815,11 +1715,6 @@
             modalDeckBtn.addEventListener('click', moveToDeck);
             modalTakeToHandBtn.addEventListener('click', moveToHand); // NOUVEL ÉCOUTEUR
             
-            // New event listeners for rotate and face-down buttons
-            modalRotateCardBtn.addEventListener('click', rotateCard);
-            modalFaceDownRotateCardBtn.addEventListener('click', toggleFaceDownAndRotate);
-
-
             menuCloseBtn.addEventListener('click', () => {
                 deckGraveyardMenu.classList.remove('active');
                 resetSelectedCard();
